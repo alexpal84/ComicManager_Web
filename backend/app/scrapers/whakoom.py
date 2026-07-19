@@ -201,10 +201,13 @@ class WhakoomScraper(BaseScraper):
         return title.strip()
 
     def _extract_subtitle(self, html_text: str) -> str:
-        return self._extract_first(html_text, [
-            r'<p[^>]*class="title"[^>]*>(.*?)</p>',
-            r'<div[^>]*class="[^"]*subtitle[^"]*"[^>]*>(.*?)</div>',
-            r'<meta[^>]+property="og:title"[^>]+content="[^"]*#\d+[\s:\-]+([^"]+)"',
+        block = self._extract_first(html_text, [
+            r'<div[^>]+class="[^"]*b-info[^"]*"[^>]*>(.*?)(?:</div>\s*<div[^>]+class="[^"]*owners|</div>\s*<p[^>]+class="series")',
+        ], cleaner=False)
+        if not block:
+            return ""
+        return self._extract_first(block, [
+            r'<p[^>]+class="[^"]*title[^"]*"[^>]*>(.*?)</p>',
         ])
 
     def _extract_plot(self, html_text: str) -> str:
@@ -239,6 +242,7 @@ class WhakoomScraper(BaseScraper):
 
     def _extract_series_name(self, html_text: str, fallback="") -> str:
         series = self._extract_first(html_text, [
+            r'<p[^>]+class="[^"]*series[^"]*"[^>]*>.*?<a[^>]*href="/ediciones/[^\"]+"[^>]*>(.*?)</a>',
             r'<a[^>]*href="/ediciones/[^"]+"[^>]*>([^<]+)</a>\s*</[^>]+>\s*(?:<div|<section|<h[23])',
             r'<a[^>]*href="/ediciones/[^"]+"[^>]*>([^<]+)</a>',
         ])
@@ -446,7 +450,7 @@ class WhakoomScraper(BaseScraper):
         ])
         year, month, day = self._parse_date_text(raw_date)
 
-        title = subtitle or self._extract_first(heading, [r"#\s*\d+\s+(.+)$"]) or heading
+        title = subtitle or ""
         number = self._extract_first(heading, [r"#\s*(\d+)"], cleaner=False) or ""
 
         return {

@@ -30,9 +30,15 @@ def _normalise_number(value):
 
 def _apply_details(comic, details):
     cover_url = details.pop("cover_url", None)
+    source_url = details.get("source_url")
     for field, value in details.items():
         if value not in (None, "") and hasattr(comic, field):
             setattr(comic, field, value)
+    if source_url:
+        note = f"Fuente scraper: {source_url}"
+        existing_notes = (comic.notes or "").strip()
+        if source_url not in existing_notes:
+            comic.notes = f"{existing_notes}\n{note}".strip() if existing_notes else note
     comic.metadata_dirty = True
     comic.comicinfo_written = False
     return cover_url
