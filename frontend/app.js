@@ -585,6 +585,11 @@ async function openScraperModal(comic) {
             <option value="whakoom">Whakoom</option>
             <option value="comicvine">ComicVine</option>
           </select>
+          <select id="scraper-merge-mode" class="control-select" title="Cómo combinar los metadatos">
+            <option value="fill_empty">Rellenar vacíos</option>
+            <option value="merge">Combinar campos</option>
+            <option value="replace">Reemplazar</option>
+          </select>
           <input id="scraper-query" class="field-input" value="${escapeHtml(comic.series || comic.filename)}">
           <button id="scraper-search-btn" class="px-3 py-1.5 rounded bg-amber-600 hover:bg-amber-500 text-sm whitespace-nowrap">Buscar</button>
         </div>
@@ -649,10 +654,11 @@ async function showIssuesForSeries(comic, scraper, ref) {
 
 async function applyScraperIssue(comicId, scraper, ref) {
   const writeComicInfo = confirm("¿Escribir también estos metadatos en el ComicInfo.xml del archivo (solo cbz)? Aceptar = sí, Cancelar = solo en la base de datos.");
+  const mergeMode = document.getElementById("scraper-merge-mode")?.value || "fill_empty";
   try {
     await api("/api/scrapers/apply", {
       method: "POST",
-      body: JSON.stringify({ comic_id: comicId, scraper, ref, write_comicinfo: writeComicInfo }),
+      body: JSON.stringify({ comic_id: comicId, scraper, ref, write_comicinfo: writeComicInfo, merge_mode: mergeMode }),
     });
     await loadComics(true);
     openComicDetail(comicId);
@@ -675,6 +681,7 @@ async function openBulkScraperModal() {
         ${series.length > 1 ? `<div class="notice warning">Has seleccionado ${series.length} series diferentes. Es más seguro procesar una serie cada vez.</div>` : ""}
         <div class="scraper-search-row">
           <select id="bulk-scraper-source" class="control-select"><option value="whakoom">Whakoom</option><option value="comicvine">ComicVine</option></select>
+          <select id="bulk-scraper-merge-mode" class="control-select" title="Cómo combinar los metadatos"><option value="fill_empty">Rellenar vacíos</option><option value="merge">Combinar campos</option><option value="replace">Reemplazar</option></select>
           <input id="bulk-scraper-query" class="field-input" value="${escapeHtml(suggested)}" placeholder="Nombre de la serie">
           <button id="bulk-scraper-search" class="primary-button">Buscar serie</button>
         </div>
@@ -704,7 +711,7 @@ async function previewBulkScrape(scraper, seriesRef) {
   const box = document.getElementById("bulk-scraper-results");
   box.innerHTML = '<p class="muted">Comparando números…</p>';
   try {
-    const payload = { comic_ids: [...state.selection], scraper, series_ref: seriesRef, dry_run: true, write_comicinfo: false };
+    const payload = { comic_ids: [...state.selection], scraper, series_ref: seriesRef, dry_run: true, write_comicinfo: false, merge_mode: document.getElementById("bulk-scraper-merge-mode")?.value || "fill_empty" };
     const result = await api("/api/scrapers/bulk-apply", { method: "POST", body: JSON.stringify(payload) });
     box.innerHTML = `
       <div class="match-summary"><strong>${result.matched}</strong> coincidencias <span>·</span> <strong>${result.unmatched.length}</strong> sin emparejar</div>

@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Literal
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
@@ -167,6 +167,7 @@ class ScraperApplyRequest(BaseModel):
     scraper: str
     ref: str  # url (whakoom) o issue id (comicvine)
     write_comicinfo: bool = False
+    merge_mode: Literal["fill_empty", "merge", "replace"] = "fill_empty"
 
 
 class ScraperBulkApplyRequest(BaseModel):
@@ -175,3 +176,4 @@ class ScraperBulkApplyRequest(BaseModel):
     series_ref: str
     write_comicinfo: bool = False
     dry_run: bool = True
+    merge_mode: Literal["fill_empty", "merge", "replace"] = "fill_empty"

@@ -28,11 +28,32 @@ def _normalise_number(value):
         return value
 
 
-def _apply_details(comic, details):
+MERGE_FIELDS = {"writer", "penciller", "inker", "colorist", "letterer", "cover_artist", "editor",
+                "characters", "teams", "locations", "story_arc", "tags", "genre"}
+
+
+def _merge_values(existing, incoming):
+    values = []
+    for raw in (existing or "", incoming or ""):
+        for value in str(raw).split(","):
+            value = value.strip()
+            if value and value.casefold() not in {v.casefold() for v in values}:
+                values.append(value)
+    return ", ".join(values)
+
+
+def _apply_details(comic, details, merge_mode="fill_empty"):
     cover_url = details.pop("cover_url", None)
     source_url = details.get("source_url")
     for field, value in details.items():
-        if value not in (None, "") and hasattr(comic, field):
+        if value in (None, "") or not hasattr(comic, field):
+            continue
+        existing = getattr(comic, field, None)
+        if merge_mode == "replace":
+            setattr(comic, field, value)
+        elif merge_mode == "merge" and field in MERGE_FIELDS:
+            setattr(comic, field, _merge_values(existing, value))
+        elif merge_mode == "fill_empty" and existing in (None, ""):
             setattr(comic, field, value)
     if source_url:
         note = f"Fuente scraper: {source_url}"
@@ -87,7 +108,7 @@ def apply(payload: ScraperApplyRequest, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(502, f"Error obteniendo datos del scraper: {e}")
 
-    cover_url = _apply_details(comic, details)
+    cover_url = _apply_details(comic, details, payload.merge_mode)
 
     if cover_url:
         try:
@@ -163,7 +184,7 @@ def bulk_apply(payload: ScraperBulkApplyRequest, db: Session = Depends(get_db)):
         ref = issue.get("url") or issue.get("ref")
         try:
             details = scraper.get_details(ref)
-            _apply_details(comic, details)
+            _apply_details(comic, details, payload.merge_mode)
             comic.source_scraper = payload.scraper
             comic.source_url = ref
             db.commit()

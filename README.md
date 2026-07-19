@@ -102,6 +102,9 @@ publiquen.
   busca la colección en Whakoom o ComicVine y revisa la previsualización.
   La app empareja cada archivo con su número antes de aplicar los metadatos;
   los ejemplares sin coincidencia quedan intactos y aparecen en el informe.
+- **Combinación de fuentes**: antes de aplicar un resultado puedes elegir
+  "Rellenar vacíos", "Combinar campos" (une autores, personajes, equipos,
+  localizaciones, géneros y tags sin duplicarlos) o "Reemplazar".
 - **Vistas de biblioteca**: cambia entre portadas, miniaturas, detalle y
   listado. La densidad, el tamaño de página (30–500), el campo de orden y
   su sentido se guardan en el navegador.
