@@ -1,0 +1,5 @@
+data/
+comicrackce-import/
+__pycache__/
+*.pyc
+.env

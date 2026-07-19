@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comic Manager</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="bg-orb bg-orb-a"></div>
+  <div class="bg-orb bg-orb-b"></div>
+  <div class="bg-grid"></div>
+
+  <div id="login-screen" class="fixed inset-0 flex items-center justify-center z-50">
+    <div class="login-shell">
+      <div class="login-badge">Comic Manager</div>
+      <h1>Biblioteca de cómics en la web</h1>
+      <p class="login-copy">Acceso privado para editar, escanear y revisar tu colección sin estar en casa.</p>
+      <div class="login-fields">
+        <input id="login-user" placeholder="Usuario" autocomplete="username" class="field-input login-input">
+        <input id="login-pass" type="password" placeholder="Contraseña" autocomplete="current-password" class="field-input login-input">
+      </div>
+      <label class="remember-row">
+        <input type="checkbox" id="login-remember" checked>
+        <span>Recordar credenciales en este dispositivo</span>
+      </label>
+      <button id="login-btn" class="login-button">Entrar</button>
+      <p id="login-status" class="login-status hidden"></p>
+    </div>
+  </div>
+
+  <div id="app" class="hidden">
+    <header class="site-header sticky top-0 z-40">
+      <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4 flex-wrap">
+        <div>
+          <h1 class="site-title">Comic Manager</h1>
+          <p class="site-subtitle">Gestión web de tu biblioteca remota</p>
+        </div>
+
+        <select id="library-select" class="bg-neutral-900 border border-neutral-700 rounded px-2 py-1.5 text-sm min-w-[220px]"></select>
+        <button id="manage-libs-btn" class="text-sm px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700">Bibliotecas</button>
+        <button id="scan-btn" class="text-sm px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700">Escanear</button>
+
+        <input id="search-input" placeholder="Buscar serie, título, editorial…" class="flex-1 min-w-[180px] bg-neutral-900 border border-neutral-700 rounded px-3 py-1.5 text-sm">
+
+        <select id="sort-select" class="control-select" title="Ordenar por">
+          <option value="series">Serie</option>
+          <option value="number">Número</option>
+          <option value="title">Título</option>
+          <option value="publisher">Editorial</option>
+          <option value="added_at">Añadido recientemente</option>
+          <option value="updated_at">Modificado recientemente</option>
+          <option value="year">Año</option>
+          <option value="filename">Nombre de fichero</option>
+          <option value="page_count">Número de páginas</option>
+          <option value="file_size">Tamaño</option>
+          <option value="rating">Valoración</option>
+        </select>
+        <button id="sort-order-btn" class="icon-button" title="Cambiar sentido del orden">↑</button>
+
+        <div class="header-spacer"></div>
+        <button id="logout-btn" class="text-sm px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700">Salir</button>
+      </div>
+      <div id="scan-progress" class="hidden max-w-7xl mx-auto px-4 pb-2 text-sm text-amber-400"></div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-4">
+      <section id="library-summary" class="summary-panel mb-4 hidden"></section>
+      <section class="workspace-toolbar mb-4">
+        <div class="smart-views" id="smart-views" aria-label="Vistas inteligentes">
+          <button class="smart-view active" data-view="all">Todos</button>
+          <button class="smart-view" data-view="unread">No leídos</button>
+          <button class="smart-view" data-view="identity">Sin identificar</button>
+          <button class="smart-view" data-view="publication">Publicación incompleta</button>
+          <button class="smart-view" data-view="credits">Sin autores</button>
+          <button class="smart-view" data-view="summary">Sin sinopsis</button>
+          <button class="smart-view" data-view="cover">Sin portada</button>
+          <button class="smart-view" data-view="comicinfo">Sin ComicInfo</button>
+        </div>
+        <div class="view-controls">
+          <label>Vista
+            <select id="view-mode-select" class="control-select">
+              <option value="grid">Portadas</option>
+              <option value="compact">Miniaturas</option>
+              <option value="detail">Detalle</option>
+              <option value="list">Listado</option>
+            </select>
+          </label>
+          <label>Mostrar
+            <select id="page-size-select" class="control-select">
+              <option>30</option><option selected>60</option><option>120</option><option>250</option><option>500</option>
+            </select>
+          </label>
+          <button id="select-visible-btn" class="toolbar-button">Seleccionar visibles</button>
+        </div>
+      </section>
+      <div id="selection-bar" class="hidden mb-3 flex items-center gap-3 bg-neutral-900 border border-neutral-700 rounded-lg px-4 py-2 text-sm">
+        <span id="selection-count"></span>
+        <button id="bulk-scrape-btn" class="px-3 py-1 rounded bg-purple-700 hover:bg-purple-600">Buscar metadatos de serie</button>
+        <button id="bulk-edit-btn" class="px-3 py-1 rounded bg-amber-600 hover:bg-amber-500">Editar en lote</button>
+        <button id="rename-btn" class="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700">Mover / Renombrar</button>
+        <button id="clear-selection-btn" class="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 ml-auto">Cancelar selección</button>
+      </div>
+
+      <div id="empty-state" class="empty-state hidden">
+        <h2>Sin cómics cargados todavía</h2>
+        <p>Selecciona una biblioteca o lanza un escaneo para poblar el índice. La colección se monta en solo lectura para no tocar tus archivos.</p>
+      </div>
+
+      <div id="grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
+
+      <div id="load-more-wrap" class="text-center mt-6">
+        <button id="load-more-btn" class="px-4 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-sm">Cargar más</button>
+      </div>
+    </main>
+  </div>
+
+  <div id="modal-root"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,362 @@
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(217, 119, 6, 0.16), transparent 30%),
+    radial-gradient(circle at 85% 10%, rgba(59, 130, 246, 0.16), transparent 24%),
+    linear-gradient(180deg, #070708 0%, #0f1115 100%);
+  color: #f5f5f5;
+}
+
+.bg-orb {
+  position: fixed;
+  inset: auto;
+  border-radius: 999px;
+  filter: blur(40px);
+  opacity: 0.45;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.bg-orb-a {
+  top: -80px;
+  left: -60px;
+  width: 240px;
+  height: 240px;
+  background: rgba(217, 119, 6, 0.28);
+}
+
+.bg-orb-b {
+  right: -70px;
+  top: 20%;
+  width: 300px;
+  height: 300px;
+  background: rgba(59, 130, 246, 0.18);
+}
+
+.bg-grid {
+  position: fixed;
+  inset: 0;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.8), transparent 85%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+#app,
+#login-screen,
+#modal-root {
+  position: relative;
+  z-index: 1;
+}
+
+.login-shell {
+  width: min(92vw, 460px);
+  padding: 2rem;
+  border-radius: 24px;
+  background: rgba(8, 10, 14, 0.84);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(16px);
+}
+
+.login-shell h1 {
+  margin: 0.75rem 0 0.5rem;
+  font-size: 1.75rem;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.login-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(217, 119, 6, 0.14);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.2);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.login-copy {
+  color: #a1a1aa;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin-bottom: 1.25rem;
+}
+
+.login-fields {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.login-input {
+  height: 46px;
+  font-size: 0.96rem;
+}
+
+.remember-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0.9rem 0 1.1rem;
+  color: #c7cad1;
+  font-size: 0.9rem;
+}
+
+.login-button {
+  width: 100%;
+  height: 46px;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #d97706, #f59e0b);
+  color: #111827;
+  font-weight: 700;
+  box-shadow: 0 12px 26px rgba(245, 158, 11, 0.22);
+}
+
+.login-button:hover {
+  filter: brightness(1.04);
+}
+
+.login-status {
+  margin-top: 0.85rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.login-status.error {
+  color: #fca5a5;
+}
+
+.login-status.info {
+  color: #fde68a;
+}
+
+.site-header {
+  background: rgba(8, 10, 14, 0.82);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.site-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.site-subtitle {
+  color: #9ca3af;
+  font-size: 0.8rem;
+}
+
+.header-spacer {
+  flex: 1 1 auto;
+}
+
+.summary-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+  border-radius: 18px;
+  background: rgba(17, 24, 39, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.24);
+}
+
+.summary-kicker {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #a78bfa;
+  margin-bottom: 0.25rem;
+}
+
+.summary-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.summary-copy {
+  color: #9ca3af;
+  font-size: 0.9rem;
+  margin-top: 0.15rem;
+}
+
+.summary-chip {
+  padding: 0.55rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(217, 119, 6, 0.14);
+  color: #fcd34d;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.empty-state {
+  margin: 1rem 0 1.25rem;
+  padding: 1.25rem;
+  border-radius: 18px;
+  background: rgba(17, 24, 39, 0.68);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  color: #d1d5db;
+}
+
+.empty-state h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+
+.empty-state p {
+  color: #a1a1aa;
+  line-height: 1.5;
+}
+
+.comic-card {
+  transition: transform 0.15s ease;
+  cursor: pointer;
+  background: rgba(17, 24, 39, 0.62);
+  border-radius: 14px;
+  padding: 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.comic-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+.comic-cover {
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  background: #262626;
+  border-radius: 12px;
+}
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 7, 18, 0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 1rem;
+}
+.modal-box {
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1rem;
+  max-width: 720px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 1.5rem;
+  box-shadow: 0 30px 100px rgba(0, 0, 0, 0.5);
+}
+.field-label {
+  font-size: 0.75rem;
+  color: #cbd5e1;
+  margin-bottom: 0.15rem;
+  display: block;
+}
+.field-input {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 0.55rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.875rem;
+  color: #f5f5f5;
+}
+.field-input:focus {
+  outline: none;
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
+}
+.checkbox-select {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 20px;
+  height: 20px;
+  z-index: 5;
+}
+
+#grid {
+  min-height: 180px;
+}
+
+.workspace-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.8rem;
+  border-radius: 16px;
+  background: rgba(10, 13, 19, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+.smart-views { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.smart-view, .toolbar-button, .icon-button {
+  border: 1px solid rgba(255,255,255,.1); border-radius: 9px; background: rgba(31,41,55,.72);
+  color: #d1d5db; padding: .42rem .68rem; font-size: .78rem;
+}
+.smart-view:hover, .toolbar-button:hover, .icon-button:hover { border-color: rgba(245,158,11,.4); color: white; }
+.smart-view.active { background: rgba(217,119,6,.2); border-color: rgba(245,158,11,.45); color: #fcd34d; }
+.view-controls { display: flex; align-items: center; gap: .65rem; flex-wrap: wrap; }
+.view-controls label { display: flex; align-items: center; gap: .4rem; color: #9ca3af; font-size: .76rem; }
+.control-select { background: #111827; border: 1px solid rgba(255,255,255,.12); border-radius: 9px; padding: .42rem .55rem; color: #e5e7eb; font-size: .8rem; }
+.icon-button { min-width: 34px; font-size: 1rem; padding: .3rem .5rem; }
+.comic-collection { display: grid; gap: 1rem; }
+.comic-collection.view-grid { grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); }
+.comic-collection.view-compact { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: .65rem; }
+.view-compact .comic-card { padding: .42rem; border-radius: 10px; }
+.view-compact .comic-title, .view-compact .comic-publisher, .view-compact .comic-extra { display: none; }
+.comic-title { color: #d1d5db; margin-top: .15rem; }
+.comic-extra { display: none; color: #6b7280; margin-top: .35rem; }
+.comic-collection.view-detail { grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
+.view-detail .comic-card { display: grid; grid-template-columns: 105px minmax(0,1fr); gap: .9rem; min-height: 170px; }
+.view-detail .comic-cover { grid-row: 1; width: 105px; }
+.view-detail .comic-info { margin-top: .25rem; font-size: .82rem; }
+.view-detail .comic-series { font-size: 1rem; }
+.view-detail .comic-extra { display: block; white-space: normal; line-height: 1.5; }
+.comic-collection.view-list { display: flex; flex-direction: column; gap: .35rem; }
+.view-list .comic-card { display: grid; grid-template-columns: 42px minmax(180px,2fr) 100px minmax(120px,1fr) 130px; align-items: center; gap: .8rem; padding: .4rem .7rem; border-radius: 8px; }
+.view-list .comic-cover { width: 34px; height: 48px; aspect-ratio: auto; }
+.view-list .comic-info { display: contents; }
+.view-list .comic-title, .view-list .comic-publisher { display: block; }
+.view-list .comic-extra { display: none; }
+.view-list .comic-card:hover { transform: none; background: rgba(31,41,55,.8); }
+.primary-button { border-radius: 9px; background: #d97706; color: #111827; padding: .55rem .85rem; font-size: .82rem; font-weight: 700; white-space: nowrap; }
+.primary-button:disabled { opacity: .45; cursor: not-allowed; }
+.modal-wide { max-width: 900px; }
+.modal-heading, .modal-actions, .scraper-search-row { display: flex; align-items: center; gap: .7rem; }
+.modal-heading { justify-content: space-between; margin-bottom: 1rem; }
+.modal-heading h2 { font-size: 1.15rem; font-weight: 700; }
+.eyebrow { color: #a78bfa; text-transform: uppercase; letter-spacing: .08em; font-size: .68rem; }
+.scraper-search-row .field-input { flex: 1; }
+.scraper-workspace { margin-top: 1rem; }
+.muted { color: #9ca3af; font-size: .85rem; }
+.error-text { color: #fca5a5; }
+.series-result { width: 100%; display: flex; justify-content: space-between; align-items: center; text-align: left; padding: .75rem; margin-bottom: .45rem; border-radius: 10px; background: rgba(31,41,55,.7); border: 1px solid rgba(255,255,255,.07); }
+.series-result:hover { border-color: rgba(245,158,11,.35); }
+.series-result small { display: block; color: #9ca3af; margin-top: .15rem; }
+.match-summary { padding: .75rem; border-radius: 10px; background: rgba(31,41,55,.7); margin-bottom: .6rem; }
+.match-list { max-height: 310px; overflow: auto; }
+.match-list > div { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 1rem; padding: .5rem .65rem; border-bottom: 1px solid rgba(255,255,255,.06); font-size: .78rem; }
+.match-list > div span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #d1d5db; }
+.unmatched, .write-option { display: block; margin: .8rem 0; color: #9ca3af; font-size: .8rem; }
+.notice { padding: .7rem; border-radius: 9px; margin: .7rem 0; font-size: .8rem; }
+.notice.warning { background: rgba(245,158,11,.12); color: #fde68a; }
+.notice.success { background: rgba(34,197,94,.12); color: #86efac; }
+@media (max-width: 760px) {
+  .workspace-toolbar { align-items: stretch; flex-direction: column; }
+  .view-list .comic-card { grid-template-columns: 42px minmax(0,1fr) 70px; }
+  .view-list .comic-title, .view-list .comic-publisher { display: none; }
+  .scraper-search-row { align-items: stretch; flex-direction: column; }
+}
