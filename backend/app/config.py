@@ -30,7 +30,7 @@ WHAKOOM_SESSION_FILE = DATA_DIR / "whakoom-cookies.txt"
 # --- Comportamiento de conversión / escritura ---
 # Si True, al convertir CBR->CBZ se elimina el .cbr original solo tras verificar
 # que el .cbz nuevo se ha creado correctamente y contiene el mismo nº de páginas.
-DELETE_ORIGINAL_AFTER_CONVERT = os.environ.get("COMICMGR_DELETE_CBR_AFTER_CONVERT", "false").lower() == "true"
+DELETE_ORIGINAL_AFTER_CONVERT = os.environ.get("COMICMGR_DELETE_CBR_AFTER_CONVERT", "true").lower() == "true"
 
 # Formatos de archivo de cómic soportados al escanear
 SUPPORTED_EXTENSIONS = {".cbz", ".cbr", ".cb7", ".zip", ".rar"}

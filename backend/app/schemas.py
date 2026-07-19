@@ -78,6 +78,8 @@ class ComicOut(BaseModel):
     added_at: datetime
     updated_at: datetime
     comicinfo_synced_at: Optional[datetime] = None
+    comicinfo_written: bool = False
+    metadata_dirty: bool = False
     source_scraper: Optional[str] = None
     source_url: Optional[str] = None
     crce_book_id: Optional[str] = None
@@ -144,6 +146,15 @@ class RenamePatternRequest(BaseModel):
 class ConvertRequest(BaseModel):
     comic_id: int
     delete_original: Optional[bool] = None  # si None, usa el valor por defecto de config
+
+
+class BulkConvertRequest(BaseModel):
+    comic_ids: List[int]
+    delete_original: bool = True
+
+
+class BulkComicInfoRequest(BaseModel):
+    comic_ids: List[int]
 
 
 class ScraperSearchRequest(BaseModel):

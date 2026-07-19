@@ -1,10 +1,8 @@
 FROM python:3.12-slim
 
-# unrar-free: suficiente para arrancar la app en este entorno de prueba.
-# Si luego quieres máxima compatibilidad con RAR5, se puede volver a unrar
-# real cuando la imagen base y los repositorios estén alineados.
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends unrar-free libmagic1 \
+RUN sed -i 's/Components: main/Components: main contrib non-free non-free-firmware/' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends unrar libmagic1 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

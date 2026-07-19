@@ -98,6 +98,8 @@ class Comic(Base):
     added_at = Column(DateTime, default=dt.datetime.utcnow)
     updated_at = Column(DateTime, default=dt.datetime.utcnow, onupdate=dt.datetime.utcnow)
     comicinfo_synced_at = Column(DateTime, nullable=True)  # última vez que se escribió ComicInfo.xml
+    comicinfo_written = Column(Boolean, default=False, nullable=False)
+    metadata_dirty = Column(Boolean, default=False, nullable=False)
     source_scraper = Column(String, nullable=True)   # "Whakoom" / "ComicVine" / manual
     source_url = Column(String, nullable=True)
 

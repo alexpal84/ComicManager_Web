@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Comic Manager</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
-<link rel="stylesheet" href="/static/styles.css?v=20260719-2">
+<link rel="stylesheet" href="/static/styles.css?v=20260719-3">
 </head>
 <body>
   <div class="bg-orb bg-orb-a"></div>
@@ -38,7 +38,7 @@
           <p class="site-subtitle">Gestión web de tu biblioteca remota</p>
         </div>
 
-        <select id="library-select" class="bg-neutral-900 border border-neutral-700 rounded px-2 py-1.5 text-sm min-w-[220px]"></select>
+        <select id="library-select" class="control-select min-w-[220px]"></select>
         <button id="manage-libs-btn" class="text-sm px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700">Bibliotecas</button>
         <button id="scan-btn" class="text-sm px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700">Escanear</button>
 
@@ -70,6 +70,9 @@
       <section class="workspace-toolbar mb-4">
         <div class="smart-views" id="smart-views" aria-label="Vistas inteligentes">
           <button class="smart-view active" data-view="all">Todos</button>
+          <button class="smart-view" data-view="cbr">CBR por convertir</button>
+          <button class="smart-view" data-view="minimum">Metadatos mínimos incompletos</button>
+          <button class="smart-view" data-view="dirty">Modificados sin sincronizar</button>
           <button class="smart-view" data-view="unread">No leídos</button>
           <button class="smart-view" data-view="identity">Sin identificar</button>
           <button class="smart-view" data-view="publication">Publicación incompleta</button>
@@ -97,15 +100,17 @@
       </section>
       <div id="selection-bar" class="hidden mb-3 flex items-center gap-3 bg-neutral-900 border border-neutral-700 rounded-lg px-4 py-2 text-sm">
         <span id="selection-count"></span>
+        <button id="bulk-convert-btn" class="px-3 py-1 rounded bg-blue-700 hover:bg-blue-600">Convertir CBR → CBZ</button>
         <button id="bulk-scrape-btn" class="px-3 py-1 rounded bg-purple-700 hover:bg-purple-600">Buscar metadatos de serie</button>
         <button id="bulk-edit-btn" class="px-3 py-1 rounded bg-amber-600 hover:bg-amber-500">Editar en lote</button>
+        <button id="bulk-comicinfo-btn" class="px-3 py-1 rounded bg-green-700 hover:bg-green-600">Escribir ComicInfo</button>
         <button id="rename-btn" class="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700">Mover / Renombrar</button>
         <button id="clear-selection-btn" class="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 ml-auto">Cancelar selección</button>
       </div>
 
       <div id="empty-state" class="empty-state hidden">
         <h2>Sin cómics cargados todavía</h2>
-        <p>Selecciona una biblioteca o lanza un escaneo para poblar el índice. La colección se monta en solo lectura para no tocar tus archivos.</p>
+        <p>Selecciona una biblioteca o lanza un escaneo para poblar el índice. Las operaciones que modifican archivos crean antes una copia de seguridad.</p>
       </div>
 
       <div id="grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
@@ -118,6 +123,6 @@
 
   <div id="modal-root"></div>
 
-  <script src="/static/app.js?v=20260719-2"></script>
+  <script src="/static/app.js?v=20260719-3"></script>
 </body>
 </html>

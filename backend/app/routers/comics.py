@@ -6,7 +6,7 @@ from sqlalchemy import or_, and_
 from ..database import get_db
 from ..auth import require_auth
 from ..models import Comic
-from ..schemas import ComicOut, ComicUpdate, BulkEditRequest, MoveRequest, RenamePatternRequest
+from ..schemas import ComicOut, ComicUpdate, BulkEditRequest, BulkComicInfoRequest, MoveRequest, RenamePatternRequest
 from ..mover import move_comic, render_pattern
 from .. import archive_utils
 
@@ -24,6 +24,8 @@ def list_comics(
     missing: Optional[str] = Query(None, description="Campos vacíos separados por coma"),
     missing_mode: str = Query("any", pattern="^(any|all)$"),
     format: Optional[str] = None,
+    metadata_dirty: Optional[bool] = None,
+    comicinfo_written: Optional[bool] = None,
     sort: str = Query("series", pattern="^(series|number|title|publisher|year|added_at|updated_at|filename|page_count|file_size|rating)$"),
     order: str = Query("asc", pattern="^(asc|desc)$"),
     limit: int = Query(100, le=500),
@@ -43,10 +45,14 @@ def list_comics(
         query = query.filter(Comic.read == False)  # noqa: E712
     if format:
         query = query.filter(Comic.format == format.lower())
+    if metadata_dirty is not None:
+        query = query.filter(Comic.metadata_dirty == metadata_dirty)
+    if comicinfo_written is not None:
+        query = query.filter(Comic.comicinfo_written == comicinfo_written)
     missing_fields = {
         "series": Comic.series, "number": Comic.number, "title": Comic.title,
         "year": Comic.year, "publisher": Comic.publisher, "writer": Comic.writer,
-        "penciller": Comic.penciller, "genre": Comic.genre, "summary": Comic.summary,
+        "penciller": Comic.penciller, "genre": Comic.genre, "summary": Comic.summary, "tags": Comic.tags,
         "language": Comic.language, "cover": Comic.cover_thumbnail,
         "comicinfo": Comic.comicinfo_synced_at,
     }
@@ -80,6 +86,10 @@ def _apply_changes(comic: Comic, changes: ComicUpdate):
     data = changes.model_dump(exclude={"write_comicinfo"}, exclude_unset=True)
     for field, value in data.items():
         setattr(comic, field, value)
+    metadata_fields = set(data) - {"read", "last_page_read", "rating"}
+    if metadata_fields:
+        comic.metadata_dirty = True
+        comic.comicinfo_written = False
 
 
 @router.put("/{comic_id:int}", response_model=ComicOut)
@@ -100,6 +110,8 @@ def update_comic(comic_id: int, changes: ComicUpdate, db: Session = Depends(get_
         backup_file(comic.path, tag="before_comicinfo_write")
         archive_utils.write_comicinfo_into_cbz(comic.path, comic)
         comic.comicinfo_synced_at = dt.datetime.utcnow()
+        comic.comicinfo_written = True
+        comic.metadata_dirty = False
         db.commit()
         db.refresh(comic)
 
@@ -131,11 +143,38 @@ def bulk_edit(payload: BulkEditRequest, db: Session = Depends(get_db)):
                 backup_file(comic.path, tag="before_bulk_comicinfo_write")
                 archive_utils.write_comicinfo_into_cbz(comic.path, comic)
                 comic.comicinfo_synced_at = dt.datetime.utcnow()
+                comic.comicinfo_written = True
+                comic.metadata_dirty = False
             except Exception as e:
                 comicinfo_errors.append(f"{comic.filename}: {e}")
         db.commit()
 
     return {"updated": len(updated_ids), "comic_ids": updated_ids, "comicinfo_errors": comicinfo_errors}
+
+
+@router.post("/bulk-write-comicinfo")
+def bulk_write_comicinfo(payload: BulkComicInfoRequest, db: Session = Depends(get_db)):
+    comics = db.query(Comic).filter(Comic.id.in_(payload.comic_ids)).all()
+    results = []
+    from ..backup import backup_file
+    import datetime as dt
+    for comic in comics:
+        if comic.format != "cbz":
+            results.append({"comic_id": comic.id, "ok": False, "filename": comic.filename, "error": "no es CBZ"})
+            continue
+        try:
+            backup_file(comic.path, tag="before_bulk_comicinfo_write")
+            archive_utils.write_comicinfo_into_cbz(comic.path, comic)
+            comic.comicinfo_synced_at = dt.datetime.utcnow()
+            comic.comicinfo_written = True
+            comic.metadata_dirty = False
+            db.commit()
+            results.append({"comic_id": comic.id, "ok": True, "filename": comic.filename})
+        except Exception as e:
+            db.rollback()
+            results.append({"comic_id": comic.id, "ok": False, "filename": comic.filename, "error": str(e)})
+    written = sum(1 for result in results if result["ok"])
+    return {"written": written, "failed": len(results) - written, "results": results}
 
 
 @router.post("/move")

@@ -19,23 +19,21 @@ services:
 
       # Si es "true", al convertir un .cbr a .cbz se borra el .cbr original
       # tras verificar que el .cbz nuevo tiene el mismo nº de páginas.
-      # Por defecto lo dejamos en "false": se quedan ambos y decides tú
-      # cuándo borrar los .cbr manualmente, para máxima seguridad.
-      - COMICMGR_DELETE_CBR_AFTER_CONVERT=false
+      # La copia de seguridad se conserva en /data/backups.
+      - COMICMGR_DELETE_CBR_AFTER_CONVERT=true
     volumes:
       # Datos propios de la app: base de datos, portadas, copias de
       # seguridad. Se queda fuera del contenedor para no perder nada al
       # reconstruir la imagen.
       - ./data:/data
 
-      # Biblioteca real en modo solo lectura para evitar cualquier
-      # modificación accidental de los ficheros durante la prueba inicial.
-      - /mnt/disco/descargas/comics:/comics:ro
+      # Lectura-escritura: necesaria para ComicInfo, conversiones y movimientos.
+      - /mnt/disco/descargas/comics:/comics
 
       # Cómics pendientes de clasificar/leer desde aMule. Verificado: la
       # carpeta contiene archivos .cbz y .cbr. Añádela en la interfaz como
       # biblioteca con ruta /incoming.
-      - /mnt/disco/descargas/Isos/mula/Incoming:/incoming:ro
+      - /mnt/disco/descargas/Isos/mula/Incoming:/incoming
 
       # (Opcional) si en algún momento traes tu ComicDb.xml desde el PC
       # para hacer la importación de metadatos, ponlo por ejemplo en

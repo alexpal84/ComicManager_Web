@@ -5,7 +5,18 @@ body {
     radial-gradient(circle at 85% 10%, rgba(59, 130, 246, 0.16), transparent 24%),
     linear-gradient(180deg, #070708 0%, #0f1115 100%);
   color: #f5f5f5;
+  color-scheme: dark;
 }
+
+select,
+select option,
+input,
+textarea {
+  background-color: #111827;
+  color: #f9fafb;
+}
+select option:checked { background: #d97706; color: #111827; }
+select:focus, input:focus, textarea:focus { outline: 2px solid #f59e0b; outline-offset: 1px; }
 
 .bg-orb {
   position: fixed;
@@ -310,7 +321,8 @@ body {
 .smart-view.active { background: rgba(217,119,6,.2); border-color: rgba(245,158,11,.45); color: #fcd34d; }
 .view-controls { display: flex; align-items: center; gap: .65rem; flex-wrap: wrap; }
 .view-controls label { display: flex; align-items: center; gap: .4rem; color: #9ca3af; font-size: .76rem; }
-.control-select { background: #111827; border: 1px solid rgba(255,255,255,.12); border-radius: 9px; padding: .42rem .55rem; color: #e5e7eb; font-size: .8rem; }
+.control-select { background: #111827 !important; border: 1px solid #4b5563; border-radius: 9px; padding: .42rem .55rem; color: #f9fafb !important; font-size: .8rem; }
+.control-select option { background: #111827 !important; color: #f9fafb !important; }
 .icon-button { min-width: 34px; font-size: 1rem; padding: .3rem .5rem; }
 .comic-collection { display: grid; gap: 1rem; }
 .comic-collection.view-grid { grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); }
@@ -360,3 +372,18 @@ body {
   .view-list .comic-title, .view-list .comic-publisher { display: none; }
   .scraper-search-row { align-items: stretch; flex-direction: column; }
 }
+
+/* Vista de revisión: tabla de metadatos sin portadas. */
+.comic-collection.view-detail { display: block; overflow-x: auto; border: 1px solid rgba(255,255,255,.09); border-radius: 12px; }
+.view-detail .detail-row {
+  display: grid;
+  grid-template-columns: 34px minmax(145px,1.25fr) minmax(140px,1.2fr) minmax(120px,1fr) minmax(120px,1fr) 62px 62px 62px minmax(130px,1fr) minmax(220px,1.8fr);
+  gap: .65rem; align-items: center; min-width: 1250px; padding: .58rem .7rem;
+}
+.view-detail .detail-row.comic-card { min-height: 0; border: 0; border-bottom: 1px solid rgba(255,255,255,.06); border-radius: 0; background: rgba(17,24,39,.5); font-size: .76rem; }
+.view-detail .detail-row.comic-card:nth-child(odd) { background: rgba(31,41,55,.42); }
+.view-detail .detail-row.comic-card:hover { transform: none; background: rgba(180,83,9,.16); }
+.detail-header { position: sticky; top: 0; z-index: 2; background: #111827; color: #fbbf24; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.detail-primary { color: #f9fafb; font-weight: 700; }
+.detail-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #9ca3af; }
+.detail-checkbox { width: 18px; height: 18px; }

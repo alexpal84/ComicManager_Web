@@ -21,9 +21,11 @@ const state = {
 };
 
 const SMART_VIEWS = {
-  all: {}, unread: { unread_only: true }, identity: { missing: "series,number" },
+  all: {}, cbr: { format: "cbr" }, minimum: { missing: "series,writer,tags" },
+  dirty: { metadata_dirty: true, comicinfo_written: false },
+  unread: { unread_only: true }, identity: { missing: "series,number" },
   publication: { missing: "year,publisher" }, credits: { missing: "writer,penciller" },
-  summary: { missing: "summary" }, cover: { missing: "cover" }, comicinfo: { missing: "comicinfo" },
+  summary: { missing: "summary" }, cover: { missing: "cover" }, comicinfo: { comicinfo_written: false },
 };
 
 // Se declara antes de cualquier arranque asíncrono. De este modo, una sesión
@@ -242,6 +244,8 @@ sel_listeners: {
   document.getElementById("manage-libs-btn").addEventListener("click", openLibraryManager);
   document.getElementById("clear-selection-btn").addEventListener("click", clearSelection);
   document.getElementById("bulk-edit-btn").addEventListener("click", openBulkEditModal);
+  document.getElementById("bulk-convert-btn").addEventListener("click", convertSelectedComics);
+  document.getElementById("bulk-comicinfo-btn").addEventListener("click", writeComicInfoForSelection);
   document.getElementById("bulk-scrape-btn").addEventListener("click", openBulkScraperModal);
   document.getElementById("rename-btn").addEventListener("click", openRenameModal);
 }
@@ -263,6 +267,9 @@ async function loadComics(reset) {
   const smartView = SMART_VIEWS[state.filters.view] || {};
   if (smartView.unread_only) params.set("unread_only", "true");
   if (smartView.missing) params.set("missing", smartView.missing);
+  if (smartView.format) params.set("format", smartView.format);
+  if (smartView.metadata_dirty !== undefined) params.set("metadata_dirty", String(smartView.metadata_dirty));
+  if (smartView.comicinfo_written !== undefined) params.set("comicinfo_written", String(smartView.comicinfo_written));
 
   const results = await api(`/api/comics?${params.toString()}`);
   state.comics = reset ? results : [...state.comics, ...results];
@@ -276,6 +283,22 @@ async function loadComics(reset) {
 function renderGrid() {
   const grid = document.getElementById("grid");
   grid.className = `comic-collection view-${state.viewMode}`;
+  if (state.viewMode === "detail") {
+    grid.innerHTML = `
+      <div class="detail-row detail-header">
+        <span></span><span>Serie</span><span>Título</span><span>Guionista</span><span>Dibujante</span><span>N.º</span><span>Vol.</span><span>Año</span><span>Categoría</span><span>Ruta</span>
+      </div>` + state.comics.map(c => `
+      <div class="detail-row comic-card" data-id="${c.id}">
+        <input type="checkbox" class="detail-checkbox" data-select-id="${c.id}" ${state.selection.has(c.id) ? "checked" : ""}>
+        <span class="detail-primary">${escapeHtml(c.series || "—")}</span>
+        <span>${escapeHtml(c.title || "—")}</span><span>${escapeHtml(c.writer || "—")}</span>
+        <span>${escapeHtml(c.penciller || "—")}</span><span>${escapeHtml(c.number || "—")}</span>
+        <span>${escapeHtml(c.volume || "—")}</span><span>${c.year || "—"}</span>
+        <span>${escapeHtml(c.tags || "—")}</span><span class="detail-path" title="${escapeHtml(c.path)}">${escapeHtml(c.path)}</span>
+      </div>`).join("");
+    bindCollectionEvents(grid);
+    return;
+  }
   grid.innerHTML = state.comics.map(c => `
     <div class="comic-card relative" data-id="${c.id}">
       <input type="checkbox" class="checkbox-select" data-select-id="${c.id}" ${state.selection.has(c.id) ? "checked" : ""}>
@@ -294,6 +317,10 @@ function renderGrid() {
     </div>
   `).join("");
 
+  bindCollectionEvents(grid);
+}
+
+function bindCollectionEvents(grid) {
   grid.querySelectorAll("[data-select-id]").forEach(cb => {
     cb.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -305,6 +332,28 @@ function renderGrid() {
   grid.querySelectorAll(".comic-card").forEach(card => {
     card.addEventListener("click", () => openComicDetail(parseInt(card.dataset.id)));
   });
+}
+
+async function convertSelectedComics() {
+  const selectedCbr = state.comics.filter(comic => state.selection.has(comic.id) && ["cbr", "rar"].includes(comic.format));
+  if (!selectedCbr.length) { alert("La selección no contiene archivos CBR pendientes."); return; }
+  if (!confirm(`Se convertirán ${selectedCbr.length} CBR y se borrarán los originales solo después de verificar cada CBZ. ¿Continuar?`)) return;
+  try {
+    const result = await api("/api/convert/bulk", { method: "POST", body: JSON.stringify({ comic_ids: selectedCbr.map(c => c.id), delete_original: true }) });
+    alert(`Convertidos: ${result.converted}. Errores: ${result.failed}.`);
+    await loadComics(true);
+  } catch (e) { alert("Error en la conversión: " + e.message); }
+}
+
+async function writeComicInfoForSelection() {
+  const selectedCbz = state.comics.filter(comic => state.selection.has(comic.id) && comic.format === "cbz");
+  if (!selectedCbz.length) { alert("Selecciona al menos un archivo CBZ."); return; }
+  if (!confirm(`Se escribirá ComicInfo.xml en ${selectedCbz.length} CBZ, creando copia de seguridad de cada archivo. ¿Continuar?`)) return;
+  try {
+    const result = await api("/api/comics/bulk-write-comicinfo", { method: "POST", body: JSON.stringify({ comic_ids: selectedCbz.map(c => c.id) }) });
+    alert(`ComicInfo escritos: ${result.written}. Errores: ${result.failed}.`);
+    await loadComics(true);
+  } catch (e) { alert("Error escribiendo ComicInfo: " + e.message); }
 }
 
 function selectVisible() {
@@ -487,7 +536,7 @@ function renderComicModal(comic) {
 }
 
 async function convertComic(id) {
-  if (!confirm("Se creará una copia de seguridad del .cbr y se generará un .cbz junto a él. ¿Continuar?")) return;
+  if (!confirm("Se creará una copia de seguridad, se verificará el CBZ generado y después se eliminará el CBR original. ¿Continuar?")) return;
   try {
     const res = await api("/api/convert", { method: "POST", body: JSON.stringify({ comic_id: id }) });
     alert(res.note);

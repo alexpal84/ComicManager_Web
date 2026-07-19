@@ -16,8 +16,9 @@ Community Edition** sin romper nada.
   `ComicDb.xml` de ComicRackCE.
 - Lee y escribe `ComicInfo.xml` dentro de los `.cbz` (estándar que
   ComicRackCE también usa y respeta).
-- Convierte `.cbr` → `.cbz` verificando el nº de páginas antes de decidir
-  si borra el original (por defecto, **no lo borra**).
+- Convierte `.cbr` → `.cbz` con el `unrar` oficial, verifica el número de
+  páginas y solo entonces borra el original. Conserva además una copia en
+  `/data/backups/`.
 - Edición individual y masiva de metadatos.
 - Scraper de **Whakoom** (tu propio código, portado) y de **ComicVine**
   (API oficial, necesitas tu API key gratuita).
@@ -95,9 +96,8 @@ publiquen.
 - **Ver/editar un cómic**: haz clic en su portada. Se abre un panel con
   todos los campos, resumen, botón de lectura, conversión (si es cbr) y
   búsqueda de metadatos.
-- **Selección múltiple**: marca la casilla de varias portadas → aparece
-  una barra con "Buscar metadatos de serie", "Editar en lote" y
-  "Mover/Renombrar".
+- **Selección múltiple**: marca varios cómics para convertir CBR→CBZ,
+  completar metadatos, escribir ComicInfo o mover/renombrar en lote.
 - **Scraper por serie**: selecciona varios cómics de una misma serie,
   busca la colección en Whakoom o ComicVine y revisa la previsualización.
   La app empareja cada archivo con su número antes de aplicar los metadatos;
@@ -105,21 +105,19 @@ publiquen.
 - **Vistas de biblioteca**: cambia entre portadas, miniaturas, detalle y
   listado. La densidad, el tamaño de página (30–500), el campo de orden y
   su sentido se guardan en el navegador.
-- **Vistas inteligentes**: usa los accesos "Sin identificar", "Publicación
-  incompleta", "Sin autores", "Sin sinopsis", "Sin portada" y "Sin
-  ComicInfo" para localizar rápidamente registros que necesitan revisión.
+- **Vistas inteligentes**: incluye "CBR por convertir", "Metadatos mínimos
+  incompletos" (serie, guionista o tags), "Modificados sin sincronizar",
+  "Sin ComicInfo" y otros filtros de revisión.
 - **Editar en lote**: marca solo las casillas de los campos que quieres
   sobrescribir en todos los seleccionados (el resto no se toca).
 - **Mover/renombrar en lote**: define un patrón de carpetas, previsualiza
   el resultado, y aplica. Mueve el fichero físico y actualiza la ruta en
   la base de datos de esta app.
-- **Convertir CBR→CBZ**: dentro del detalle de un cómic .cbr, botón
-  "Convertir a CBZ". Por defecto conserva el .cbr original junto al nuevo
-  .cbz (puedes cambiarlo con `COMICMGR_DELETE_CBR_AFTER_CONVERT=true` en
-  el docker-compose, o borrarlos tú mismo a mano cuando quieras).
-- **Escribir ComicInfo.xml**: al guardar cambios en un cómic (individual o
-  en lote), marca la casilla "Escribir también en ComicInfo.xml". Solo
-  aplica a `.cbz` (convierte antes los `.cbr`).
+- **Convertir CBR→CBZ**: disponible individualmente y por lotes. El CBR se
+  elimina únicamente después de comprobar que el CBZ contiene el mismo
+  número de páginas; antes se guarda una copia de seguridad.
+- **Escribir ComicInfo.xml**: disponible al guardar y como operación por
+  lotes. Al completarse limpia el estado "modificado sin sincronizar".
 
 ---
 

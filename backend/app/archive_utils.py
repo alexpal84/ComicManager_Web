@@ -20,13 +20,9 @@ from PIL import Image
 from .config import THUMBNAIL_MAX_SIDE, COVERS_DIR
 from .comicinfo import parse_comicinfo_xml, comic_to_comicinfo_xml
 
-# El binario disponible depende de qué paquete haya podido instalarse en el
-# contenedor: el "unrar" real (no-libre, mejor compatibilidad) o su clon
-# libre "unrar-free" (ver Dockerfile). Detectamos cuál hay disponible.
-if shutil.which("unrar"):
-    rarfile.UNRAR_TOOL = "unrar"
-elif shutil.which("unrar-free"):
-    rarfile.UNRAR_TOOL = "unrar-free"
+if not shutil.which("unrar"):
+    raise RuntimeError("Comic Manager requiere el binario unrar oficial para manejar CBR/RAR")
+rarfile.UNRAR_TOOL = "unrar"
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"}
 COMICINFO_NAME = "ComicInfo.xml"

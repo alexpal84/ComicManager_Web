@@ -105,11 +105,15 @@ def scan_library(db: Session, library: Library, progress_cb=None) -> dict:
                 for k, v in info.items():
                     if v not in (None, ""):
                         setattr(comic, k, v)
+                comic.comicinfo_written = True
+                comic.metadata_dirty = False
             elif is_new:
                 guess = guess_metadata_from_filename(comic.filename)
                 comic.series = comic.series or guess["series"]
                 comic.number = comic.number or guess["number"]
                 comic.year = comic.year or guess["year"]
+                comic.comicinfo_written = False
+                comic.metadata_dirty = False
 
             try:
                 comic.page_count = archive_utils.page_count(path)

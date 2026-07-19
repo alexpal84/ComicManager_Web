@@ -33,6 +33,8 @@ def _apply_details(comic, details):
     for field, value in details.items():
         if value not in (None, "") and hasattr(comic, field):
             setattr(comic, field, value)
+    comic.metadata_dirty = True
+    comic.comicinfo_written = False
     return cover_url
 
 
@@ -106,6 +108,8 @@ def apply(payload: ScraperApplyRequest, db: Session = Depends(get_db)):
         backup_file(comic.path, tag="before_scraper_comicinfo_write")
         archive_utils.write_comicinfo_into_cbz(comic.path, comic)
         comic.comicinfo_synced_at = dt.datetime.utcnow()
+        comic.comicinfo_written = True
+        comic.metadata_dirty = False
         db.commit()
         db.refresh(comic)
 
@@ -163,6 +167,8 @@ def bulk_apply(payload: ScraperBulkApplyRequest, db: Session = Depends(get_db)):
                 backup_file(comic.path, tag="before_bulk_scraper_comicinfo_write")
                 archive_utils.write_comicinfo_into_cbz(comic.path, comic)
                 comic.comicinfo_synced_at = dt.datetime.utcnow()
+                comic.comicinfo_written = True
+                comic.metadata_dirty = False
                 db.commit()
             updated.append(comic.id)
         except Exception as e:
