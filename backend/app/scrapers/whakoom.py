@@ -394,9 +394,7 @@ class WhakoomScraper(BaseScraper):
                 base_url = base_url[:-6]
             html_main = self._request(base_url).text
             self._current_series_roles = self._collect_series_roles(html_main)
-            issues = self._extract_issue_links(html_main)
-            if issues:
-                return self._sort_issues(issues)
+            summary_issues = self._extract_issue_links(html_main)
             if "/ediciones/" in base_url:
                 page = 1
                 seen = set()
@@ -417,6 +415,12 @@ class WhakoomScraper(BaseScraper):
                     if added == 0:
                         break
                     page += 1
+            # Las páginas /ediciones/ enseñan solo los últimos números tras
+            # un botón "mostrar más". /todos es la fuente completa y debe
+            # prevalecer siempre; el resumen solo sirve de respaldo si
+            # Whakoom cambia o falla temporalmente esa ruta.
+            if not issues:
+                issues = summary_issues
             return self._sort_issues(issues) if issues else [
                 {"url": base_url, "title": self._extract_page_heading(html_main), "number": "1"}
             ]
