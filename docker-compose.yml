@@ -11,7 +11,7 @@ services:
       - COMICMGR_PASS=${COMICMGR_PASS:?Define COMICMGR_PASS en el archivo .env}
 
       # API key gratuita de ComicVine: https://comicvine.gamespot.com/api/
-      - COMICVINE_API_KEY=
+      - COMICVINE_API_KEY=${COMICVINE_API_KEY:-}
 
       # Credenciales de Whakoom. Defínelas en .env, nunca en este archivo.
       - WHAKOOM_USER=${WHAKOOM_USER:-}

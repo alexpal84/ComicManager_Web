@@ -102,7 +102,8 @@ class ComicVineScraper(BaseScraper):
 
         data = self._get(f"issue/4000-{issue_id}", {
             "field_list": "id,name,issue_number,cover_date,description,image,volume,"
-                          "person_credits,character_credits,team_credits,location_credits,story_arc_credits",
+                          "site_detail_url,person_credits,character_credits,team_credits,"
+                          "location_credits,story_arc_credits",
         })
         it = data.get("results", {})
         if not it:
