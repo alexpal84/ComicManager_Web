@@ -26,6 +26,18 @@ const SMART_VIEWS = {
   summary: { missing: "summary" }, cover: { missing: "cover" }, comicinfo: { missing: "comicinfo" },
 };
 
+// Se declara antes de cualquier arranque asíncrono. De este modo, una sesión
+// restaurada nunca puede abrir el detalle mientras la configuración está en TDZ.
+const EDITABLE_FIELDS = Object.freeze([
+  ["series", "Serie"], ["number", "Número"], ["volume", "Volumen"], ["title", "Título"],
+  ["year", "Año"], ["month", "Mes"], ["day", "Día"], ["publisher", "Editorial"],
+  ["genre", "Género"], ["language", "Idioma"], ["writer", "Guionista"], ["penciller", "Dibujante"],
+  ["inker", "Entintador"], ["colorist", "Colorista"], ["letterer", "Rotulista"],
+  ["cover_artist", "Portadista"], ["editor", "Editor"], ["story_arc", "Saga"],
+  ["characters", "Personajes"], ["teams", "Equipos"], ["locations", "Localizaciones"],
+  ["tags", "Etiquetas"],
+]);
+
 function savePreferences() {
   localStorage.setItem(STORAGE_KEYS.preferences, JSON.stringify({
     limit: state.limit, viewMode: state.viewMode, sort: state.filters.sort, order: state.filters.order,
@@ -395,16 +407,6 @@ function closeModal() {
 }
 
 // ===================== Detalle / edición de un cómic =====================
-const EDITABLE_FIELDS = [
-  ["series", "Serie"], ["number", "Número"], ["volume", "Volumen"], ["title", "Título"],
-  ["year", "Año"], ["month", "Mes"], ["day", "Día"], ["publisher", "Editorial"],
-  ["genre", "Género"], ["language", "Idioma"], ["writer", "Guionista"], ["penciller", "Dibujante"],
-  ["inker", "Entintador"], ["colorist", "Colorista"], ["letterer", "Rotulista"],
-  ["cover_artist", "Portadista"], ["editor", "Editor"], ["story_arc", "Saga"],
-  ["characters", "Personajes"], ["teams", "Equipos"], ["locations", "Localizaciones"],
-  ["tags", "Etiquetas"],
-];
-
 async function openComicDetail(id) {
   const comic = await api(`/api/comics/${id}`);
   renderComicModal(comic);
