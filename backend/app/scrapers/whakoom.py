@@ -9,6 +9,8 @@ la gestión de cadenas (unicode nativo de Python 3).
 from __future__ import annotations
 import re
 import html
+import threading
+import time
 from http.cookiejar import MozillaCookieJar
 from typing import List, Dict, Any, Optional
 
@@ -22,6 +24,11 @@ from ..config import (
 
 class WhakoomAuthenticationError(RuntimeError):
     """Whakoom no permite buscar sin una sesión iniciada."""
+
+
+_REQUEST_LOCK = threading.Lock()
+_NEXT_REQUEST_AT = 0.0
+_REQUEST_INTERVAL_SECONDS = 3.0
 
 
 class WhakoomScraper(BaseScraper):
@@ -92,9 +99,15 @@ class WhakoomScraper(BaseScraper):
             headers["Content-Type"] = content_type
         if extra_headers:
             headers.update(extra_headers)
-        resp = self.session.request(method, url, data=data, json=json_body,
-                                     headers=headers, timeout=20,
-                                     allow_redirects=allow_redirects)
+        global _NEXT_REQUEST_AT
+        with _REQUEST_LOCK:
+            wait = _NEXT_REQUEST_AT - time.monotonic()
+            if wait > 0:
+                time.sleep(wait)
+            resp = self.session.request(method, url, data=data, json=json_body,
+                                        headers=headers, timeout=20,
+                                        allow_redirects=allow_redirects)
+            _NEXT_REQUEST_AT = time.monotonic() + _REQUEST_INTERVAL_SECONDS
         resp.raise_for_status()
         return resp
 

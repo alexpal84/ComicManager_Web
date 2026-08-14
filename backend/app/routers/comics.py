@@ -9,6 +9,7 @@ from ..models import Comic
 from ..schemas import ComicOut, ComicUpdate, BulkEditRequest, BulkComicInfoRequest, MoveRequest, RenamePatternRequest
 from ..mover import move_comic, render_pattern
 from .. import archive_utils
+from ..tasks import submit, get, active
 
 router = APIRouter(prefix="/api/comics", tags=["comics"], dependencies=[Depends(require_auth)])
 
@@ -105,15 +106,18 @@ def update_comic(comic_id: int, changes: ComicUpdate, db: Session = Depends(get_
     if changes.write_comicinfo:
         if comic.format != "cbz":
             raise HTTPException(400, "Solo se puede escribir ComicInfo.xml en archivos .cbz. Convierte el .cbr primero.")
-        from ..backup import backup_file
-        import datetime as dt
-        backup_file(comic.path, tag="before_comicinfo_write")
-        archive_utils.write_comicinfo_into_cbz(comic.path, comic)
-        comic.comicinfo_synced_at = dt.datetime.utcnow()
-        comic.comicinfo_written = True
-        comic.metadata_dirty = False
-        db.commit()
+        def write(c, session):
+            from ..backup import backup_file
+            import datetime as dt
+            backup_file(c.path, tag="before_comicinfo_write")
+            archive_utils.write_comicinfo_into_cbz(c.path, c)
+            c.comicinfo_synced_at = dt.datetime.utcnow()
+            c.comicinfo_written = True
+            c.metadata_dirty = False
+            session.commit()
+        task_id = submit("writing_comicinfo", [comic.id], write)
         db.refresh(comic)
+        return {**ComicOut.model_validate(comic).model_dump(), "task_id": task_id}
 
     return comic
 
@@ -154,27 +158,29 @@ def bulk_edit(payload: BulkEditRequest, db: Session = Depends(get_db)):
 
 @router.post("/bulk-write-comicinfo")
 def bulk_write_comicinfo(payload: BulkComicInfoRequest, db: Session = Depends(get_db)):
-    comics = db.query(Comic).filter(Comic.id.in_(payload.comic_ids)).all()
-    results = []
-    from ..backup import backup_file
-    import datetime as dt
-    for comic in comics:
-        if comic.format != "cbz":
-            results.append({"comic_id": comic.id, "ok": False, "filename": comic.filename, "error": "no es CBZ"})
-            continue
-        try:
-            backup_file(comic.path, tag="before_bulk_comicinfo_write")
-            archive_utils.write_comicinfo_into_cbz(comic.path, comic)
-            comic.comicinfo_synced_at = dt.datetime.utcnow()
-            comic.comicinfo_written = True
-            comic.metadata_dirty = False
-            db.commit()
-            results.append({"comic_id": comic.id, "ok": True, "filename": comic.filename})
-        except Exception as e:
-            db.rollback()
-            results.append({"comic_id": comic.id, "ok": False, "filename": comic.filename, "error": str(e)})
-    written = sum(1 for result in results if result["ok"])
-    return {"written": written, "failed": len(results) - written, "results": results}
+    def write(comic, session):
+        from ..backup import backup_file
+        import datetime as dt
+        if comic.format != "cbz": raise ValueError("no es CBZ")
+        backup_file(comic.path, tag="before_bulk_comicinfo_write")
+        archive_utils.write_comicinfo_into_cbz(comic.path, comic)
+        comic.comicinfo_synced_at = dt.datetime.utcnow()
+        comic.comicinfo_written = True
+        comic.metadata_dirty = False
+        session.commit()
+        return {"filename": comic.filename}
+    task_id = submit("writing_comicinfo", payload.comic_ids, write)
+    return {"accepted": True, "task_id": task_id, "total": len(payload.comic_ids)}
+
+@router.get("/tasks")
+def list_tasks():
+    return {"tasks": active()}
+
+@router.get("/tasks/{task_id}")
+def task_status(task_id: str):
+    task = get(task_id)
+    if not task: raise HTTPException(404, "Tarea no encontrada")
+    return task
 
 
 @router.post("/move")

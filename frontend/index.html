@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Comic Manager</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
-<link rel="stylesheet" href="/static/styles.css?v=20260719-4">
+<link rel="stylesheet" href="/static/styles.css?v=20260720-3">
 </head>
 <body>
   <div class="bg-orb bg-orb-a"></div>
@@ -41,6 +41,8 @@
         <select id="library-select" class="control-select min-w-[220px]"></select>
         <button id="manage-libs-btn" class="text-sm px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700">Bibliotecas</button>
         <button id="scan-btn" class="text-sm px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700">Escanear</button>
+        <button id="incoming-btn" class="text-sm px-3 py-1.5 rounded bg-cyan-800 hover:bg-cyan-700">Procesamiento</button>
+        <button id="automation-btn" class="text-sm px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700">Configurar flujo</button>
 
         <input id="search-input" placeholder="Buscar serie, título, editorial…" class="flex-1 min-w-[180px] bg-neutral-900 border border-neutral-700 rounded px-3 py-1.5 text-sm">
 
@@ -66,8 +68,8 @@
     </header>
 
     <main class="max-w-7xl mx-auto px-4 py-4">
-      <section id="library-summary" class="summary-panel mb-4 hidden"></section>
-      <section class="workspace-toolbar mb-4">
+      <section id="library-summary" class="library-workspace summary-panel mb-4 hidden"></section>
+      <section class="library-workspace workspace-toolbar mb-4">
         <div class="smart-views" id="smart-views" aria-label="Vistas inteligentes">
           <button class="smart-view active" data-view="all">Todos</button>
           <button class="smart-view" data-view="cbr">CBR por convertir</button>
@@ -98,24 +100,28 @@
           <button id="select-visible-btn" class="toolbar-button">Seleccionar visibles</button>
         </div>
       </section>
-      <div id="selection-bar" class="hidden mb-3 flex items-center gap-3 bg-neutral-900 border border-neutral-700 rounded-lg px-4 py-2 text-sm">
+      <div id="selection-bar" class="library-workspace hidden mb-3 flex items-center gap-3 bg-neutral-900 border border-neutral-700 rounded-lg px-4 py-2 text-sm">
         <span id="selection-count"></span>
         <button id="bulk-convert-btn" class="px-3 py-1 rounded bg-blue-700 hover:bg-blue-600">Convertir CBR → CBZ</button>
         <button id="bulk-scrape-btn" class="px-3 py-1 rounded bg-purple-700 hover:bg-purple-600">Buscar metadatos de serie</button>
+        <button id="bulk-suggestions-btn" class="px-3 py-1 rounded bg-cyan-700 hover:bg-cyan-600">Aceptar sugerencias</button>
         <button id="bulk-edit-btn" class="px-3 py-1 rounded bg-amber-600 hover:bg-amber-500">Editar en lote</button>
         <button id="bulk-comicinfo-btn" class="px-3 py-1 rounded bg-green-700 hover:bg-green-600">Escribir ComicInfo</button>
         <button id="rename-btn" class="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700">Mover / Renombrar</button>
         <button id="clear-selection-btn" class="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 ml-auto">Cancelar selección</button>
       </div>
+      <section id="task-summary" class="library-workspace summary-panel mb-4 hidden"></section>
 
-      <div id="empty-state" class="empty-state hidden">
+      <section id="processing-workspace" class="hidden"></section>
+
+      <div id="empty-state" class="library-workspace empty-state hidden">
         <h2>Sin cómics cargados todavía</h2>
         <p>Selecciona una biblioteca o lanza un escaneo para poblar el índice. Las operaciones que modifican archivos crean antes una copia de seguridad.</p>
       </div>
 
-      <div id="grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
+      <div id="grid" class="library-workspace grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
 
-      <div id="load-more-wrap" class="text-center mt-6">
+      <div id="load-more-wrap" class="library-workspace text-center mt-6">
         <button id="load-more-btn" class="px-4 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-sm">Cargar más</button>
       </div>
     </main>
@@ -123,6 +129,6 @@
 
   <div id="modal-root"></div>
 
-  <script src="/static/app.js?v=20260719-4"></script>
+  <script src="/static/app.js?v=20260721-1"></script>
 </body>
 </html>

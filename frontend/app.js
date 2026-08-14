@@ -18,6 +18,8 @@ const state = {
   viewMode: savedPreferences.viewMode || "grid",
   selection: new Set(),
   filters: { q: "", sort: savedPreferences.sort || "series", order: savedPreferences.order || "asc", view: "all", missing: "" },
+  workspace: "library",
+  incoming: { filter: "review", items: [], selectedId: null, settingsOpen: false },
 };
 
 const SMART_VIEWS = {
@@ -145,6 +147,24 @@ async function init() {
   await loadComics(true);
   updateLibrarySummary();
   syncControls();
+  pollTaskSummary();
+}
+
+async function pollTaskSummary() {
+  try {
+    const [conversion, comicinfo] = await Promise.all([api("/api/convert/tasks"), api("/api/comics/tasks")]);
+    const tasks = [...(conversion.tasks || []), ...(comicinfo.tasks || [])];
+    const panel = document.getElementById("task-summary");
+    if (tasks.length) {
+      panel.classList.remove("hidden");
+      panel.innerHTML = `<div class="summary-kicker">Tareas en segundo plano</div>` + tasks.map(t => {
+        const pct = t.total ? Math.round(t.done * 100 / t.total) : 100;
+        const name = t.kind === "converting" ? "Conversión CBR → CBZ" : "Escritura de ComicInfo.xml";
+        return `<div class="task-row"><div class="flex justify-between text-sm"><span>${name}</span><span>${t.done}/${t.total} · ${t.failed ? `${t.failed} errores` : ""}</span></div><div class="task-progress"><span style="width:${pct}%"></span></div></div>`;
+      }).join("");
+    } else { panel.classList.add("hidden"); }
+  } catch (e) { /* una consulta de progreso no debe interrumpir la biblioteca */ }
+  setTimeout(pollTaskSummary, 1500);
 }
 
 function syncControls() {
@@ -242,8 +262,11 @@ sel_listeners: {
   document.getElementById("load-more-btn").addEventListener("click", () => loadComics(false));
   document.getElementById("scan-btn").addEventListener("click", scanCurrentLibrary);
   document.getElementById("manage-libs-btn").addEventListener("click", openLibraryManager);
+  document.getElementById("incoming-btn").addEventListener("click", () => openProcessingWorkspace());
+  document.getElementById("automation-btn").addEventListener("click", () => openProcessingWorkspace({ settingsOpen: true }));
   document.getElementById("clear-selection-btn").addEventListener("click", clearSelection);
   document.getElementById("bulk-edit-btn").addEventListener("click", openBulkEditModal);
+  document.getElementById("bulk-suggestions-btn").addEventListener("click", acceptSelectedSuggestions);
   document.getElementById("bulk-convert-btn").addEventListener("click", convertSelectedComics);
   document.getElementById("bulk-comicinfo-btn").addEventListener("click", writeComicInfoForSelection);
   document.getElementById("bulk-scrape-btn").addEventListener("click", openBulkScraperModal);
@@ -290,11 +313,11 @@ function renderGrid() {
       </div>` + state.comics.map(c => `
       <div class="detail-row comic-card" data-id="${c.id}">
         <input type="checkbox" class="detail-checkbox" data-select-id="${c.id}" ${state.selection.has(c.id) ? "checked" : ""}>
-        <span class="detail-primary">${escapeHtml(c.series || "—")}</span>
+        <span class="detail-primary">${suggestedValue(c, "series", "—")}</span>
         <span>${escapeHtml(c.title || "—")}</span><span>${escapeHtml(c.writer || "—")}</span>
-        <span>${escapeHtml(c.penciller || "—")}</span><span>${escapeHtml(c.number || "—")}</span>
+        <span>${escapeHtml(c.penciller || "—")}</span><span>${suggestedValue(c, "number", "—")}</span>
         <span>${escapeHtml(c.volume || "—")}</span><span>${c.year || "—"}</span>
-        <span>${escapeHtml(c.tags || "—")}</span><span class="detail-path" title="${escapeHtml(c.path)}">${escapeHtml(c.path)}</span>
+        <span>${escapeHtml(c.tags || "—")}</span><span class="detail-path" title="${escapeHtml(c.path)}">${operationLabel(c)} ${escapeHtml(c.path)}</span>
       </div>`).join("");
     bindCollectionEvents(grid);
     return;
@@ -306,18 +329,68 @@ function renderGrid() {
            src="${c.cover_thumbnail ? `/api/reader/${c.id}/cover` : "/static/placeholder.svg"}"
            onerror="this.src='/static/placeholder.svg'">
       <div class="comic-info mt-1 text-xs">
-        <div class="comic-series font-medium truncate">${escapeHtml(c.series || c.filename)}</div>
-        <div class="comic-number text-neutral-400 truncate">#${escapeHtml(c.number || "?")} ${c.year ? "· " + c.year : ""}</div>
+        <div class="comic-series font-medium truncate">${suggestedValue(c, "series", c.filename)}</div>
+        <div class="comic-number text-neutral-400 truncate">#${suggestedValue(c, "number", "?")} ${c.year || c.suggested_metadata?.year ? "· " + (c.year || c.suggested_metadata.year) : ""}</div>
         <div class="comic-title truncate">${escapeHtml(c.title || "")}</div>
         <div class="comic-publisher text-neutral-500 truncate">${escapeHtml(c.publisher || "")}</div>
         <div class="comic-extra">${c.page_count || 0} págs. · ${escapeHtml(c.writer || "Sin guionista")} · ${escapeHtml(c.genre || "Sin género")}</div>
       </div>
-      ${c.read ? '<span class="absolute top-1 right-1 bg-green-600 text-[10px] px-1 rounded">Leído</span>' : ""}
+      ${operationLabel(c)}${c.read ? '<span class="absolute top-1 right-1 bg-green-600 text-[10px] px-1 rounded">Leído</span>' : ""}
       ${c.format !== "cbz" ? `<span class="absolute bottom-14 right-1 bg-neutral-800 text-[10px] px-1 rounded uppercase">${c.format}</span>` : ""}
     </div>
   `).join("");
 
   bindCollectionEvents(grid);
+}
+
+function isFilenameDerivedSeries(c) {
+  const current = String(c.series || "").trim();
+  const suggested = String((c.suggested_metadata || {}).series || "").trim();
+  if (!current || !suggested || current === suggested) return false;
+  // Existing scans may have stored the complete release filename as Series.
+  // Keep a real, deliberately chosen series intact; only flag unmistakable
+  // release-name residue and a parsed Tome/issue suffix.
+  const suggestedNumber = (c.suggested_metadata || {}).number;
+  return /[\[\]{}]/.test(current) || /\([^)]{2,}\)/.test(current) ||
+    (suggestedNumber && new RegExp(`\\b(?:tomo|tome)\\s*0*${suggestedNumber}\\b`, "i").test(current));
+}
+
+function suggestionApplies(c, field) {
+  const suggestion = (c.suggested_metadata || {})[field];
+  if (suggestion === undefined || suggestion === null || suggestion === "") return false;
+  return !c[field] || (field === "series" && isFilenameDerivedSeries(c));
+}
+
+function suggestedValue(c, field, fallback) {
+  const value = c[field], suggestion = (c.suggested_metadata || {})[field];
+  return suggestionApplies(c, field)
+    ? `<span class="metadata-suggestion" title="Sugerido desde el nombre del archivo">${escapeHtml(suggestion)}</span>`
+    : value ? escapeHtml(value) : escapeHtml(fallback);
+}
+
+function suggestionChanges(c) {
+  const suggestions = c.suggested_metadata || {}, changes = {};
+  ["series", "number", "volume", "title", "year"].forEach(field => {
+    if (suggestionApplies(c, field)) changes[field] = suggestions[field];
+  });
+  if (suggestions.format && !c.format_tag) changes.format_tag = suggestions.format;
+  return changes;
+}
+
+async function acceptSelectedSuggestions() {
+  const selected = state.comics.filter(c => state.selection.has(c.id));
+  const requests = selected.map(c => { const body = suggestionChanges(c);
+    return Object.keys(body).length ? api(`/api/comics/${c.id}`, { method: "PUT", body: JSON.stringify(body) }) : null;
+  }).filter(Boolean);
+  if (!requests.length) { alert("No hay sugerencias aplicables."); return; }
+  await Promise.all(requests); await loadComics(true);
+}
+
+function operationLabel(c) {
+  if (c.operation_status === "converting") return '<span class="absolute top-1 left-1 bg-blue-600 text-[10px] px-1 rounded">⟳ CBZ</span>';
+  if (c.operation_status === "writing_comicinfo") return '<span class="absolute top-1 left-1 bg-green-600 text-[10px] px-1 rounded">⟳ XML</span>';
+  if (c.operation_status === "error") return `<span class="absolute top-1 left-1 bg-red-700 text-[10px] px-1 rounded" title="${escapeHtml(c.operation_error || "Error")}">⚠</span>`;
+  return "";
 }
 
 function bindCollectionEvents(grid) {
@@ -340,7 +413,7 @@ async function convertSelectedComics() {
   if (!confirm(`Se convertirán ${selectedCbr.length} CBR y se borrarán los originales solo después de verificar cada CBZ. ¿Continuar?`)) return;
   try {
     const result = await api("/api/convert/bulk", { method: "POST", body: JSON.stringify({ comic_ids: selectedCbr.map(c => c.id), delete_original: true }) });
-    alert(`Convertidos: ${result.converted}. Errores: ${result.failed}.`);
+    alert(`Tarea ${result.task_id} iniciada. Puedes seguir el progreso en el resumen de tareas.`);
     await loadComics(true);
   } catch (e) { alert("Error en la conversión: " + e.message); }
 }
@@ -351,7 +424,7 @@ async function writeComicInfoForSelection() {
   if (!confirm(`Se escribirá ComicInfo.xml en ${selectedCbz.length} CBZ, creando copia de seguridad de cada archivo. ¿Continuar?`)) return;
   try {
     const result = await api("/api/comics/bulk-write-comicinfo", { method: "POST", body: JSON.stringify({ comic_ids: selectedCbz.map(c => c.id) }) });
-    alert(`ComicInfo escritos: ${result.written}. Errores: ${result.failed}.`);
+    alert(`Tarea ${result.task_id} iniciada. Puedes seguir el progreso en el resumen de tareas.`);
     await loadComics(true);
   } catch (e) { alert("Error escribiendo ComicInfo: " + e.message); }
 }
@@ -377,6 +450,72 @@ function updateSelectionBar() {
   const count = state.selection.size;
   bar.classList.toggle("hidden", count === 0);
   document.getElementById("selection-count").textContent = `${count} seleccionados`;
+}
+
+// ===================== Espacio de procesamiento =====================
+async function openProcessingWorkspace(options = {}) {
+  state.workspace = "processing";
+  state.incoming.settingsOpen = options.settingsOpen ?? state.incoming.settingsOpen;
+  document.querySelectorAll(".library-workspace").forEach(el => el.classList.add("workspace-hidden"));
+  document.getElementById("processing-workspace").classList.remove("hidden");
+  await refreshProcessingWorkspace();
+}
+
+function openLibraryWorkspace() {
+  state.workspace = "library";
+  document.getElementById("processing-workspace").classList.add("hidden");
+  document.querySelectorAll(".library-workspace").forEach(el => el.classList.remove("workspace-hidden"));
+  updateSelectionBar();
+}
+
+async function refreshProcessingWorkspace() {
+  // Reclassify legacy review entries after changes to the minimum metadata
+  // rule, without retrying their scrapers.
+  await api("/api/automation/reconcile-ready", { method: "POST" });
+  const [items, cfg] = await Promise.all([api("/api/automation/items?status=all"), api("/api/automation/settings")]);
+  state.incoming.items = items;
+  if (state.incoming.selectedId && !items.some(item => item.id === state.incoming.selectedId)) state.incoming.selectedId = null;
+  await renderProcessingWorkspace(cfg);
+}
+
+async function renderProcessingWorkspace(cfg) {
+  const root = document.getElementById("processing-workspace");
+  const all = state.incoming.items;
+  const groups = { review: "Necesita revisión", errors: "Error", pending: ["Nuevo", "Esperando", "Procesando", "Valores propuestos", "Convirtiendo", "Buscando metadatos", "Listo para guardar", "Listo para mover"], completed: "Completado" };
+  const visible = state.incoming.filter === "all" ? all : all.filter(item => Array.isArray(groups[state.incoming.filter]) ? groups[state.incoming.filter].includes(item.status) : item.status === groups[state.incoming.filter]);
+  const count = value => all.filter(item => Array.isArray(value) ? value.includes(item.status) : item.status === value).length;
+  const selected = all.find(item => item.id === state.incoming.selectedId) || visible[0] || null;
+  state.incoming.selectedId = selected?.id || null;
+  const comic = selected?.comic_id ? await api(`/api/comics/${selected.comic_id}`) : null;
+  const toggle = (key, label) => `<label><input type="checkbox" data-auto="${key}" ${cfg[key] ? "checked" : ""}> ${label}</label>`;
+  root.innerHTML = `<div class="processing-header"><div><div class="eyebrow">Entrada y revisión</div><h2>Procesamiento de cómics nuevos</h2><p>Corrige y decide cada paso sin salir de esta pantalla. Las miniaturas solo identifican el archivo; la información y los errores tienen prioridad.</p></div><button id="back-library" class="toolbar-button">← Biblioteca</button></div>
+    <div class="processing-counters"><button data-processing-filter="review" class="${state.incoming.filter === "review" ? "active" : ""}"><strong>${count(groups.review)}</strong> por revisar</button><button data-processing-filter="errors" class="${state.incoming.filter === "errors" ? "active" : ""}"><strong>${count(groups.errors)}</strong> errores</button><button data-processing-filter="pending" class="${state.incoming.filter === "pending" ? "active" : ""}"><strong>${count(groups.pending)}</strong> en curso</button><button data-processing-filter="completed" class="${state.incoming.filter === "completed" ? "active" : ""}"><strong>${count(groups.completed)}</strong> completados</button></div>
+    <div class="processing-toolbar"><select id="processing-filter" class="control-select"><option value="review">Necesita revisión</option><option value="errors">Errores</option><option value="pending">En curso</option><option value="completed">Completados</option><option value="all">Todos</option></select><button id="processing-detect" class="toolbar-button">Detectar archivos</button><button id="processing-run" class="primary-button">Procesar pendientes</button><button id="processing-settings" class="toolbar-button">${state.incoming.settingsOpen ? "Ocultar configuración" : "Configurar flujo"}</button><span id="processing-message" class="muted"></span></div>
+    ${state.incoming.settingsOpen ? `<form id="processing-settings-form" class="processing-settings"><div class="settings-grid"><label class="field-label">Carpeta de entrada<input name="incoming_path" class="field-input" value="${escapeHtml(cfg.incoming_path)}"></label><label class="field-label">Biblioteca destino<select name="target_library_id" class="field-input"><option value="">Primera biblioteca disponible</option>${state.libraries.map(l => `<option value="${l.id}" ${cfg.target_library_id === l.id ? "selected" : ""}>${escapeHtml(l.name)}</option>`).join("")}</select></label><label class="field-label wide">Patrón de destino<input name="destination_pattern" class="field-input" value="${escapeHtml(cfg.destination_pattern)}"></label></div><div class="automation-toggles">${toggle("enabled", "Vigilar automáticamente la carpeta")}${toggle("accept_suggestions", "Aceptar datos extraídos del nombre")}${toggle("convert", "Convertir a CBZ")}${toggle("scrape", "Buscar metadatos")}${toggle("write_comicinfo", "Escribir ComicInfo.xml")}${toggle("move", "Mover a ubicación final")}${toggle("move_only_safe", "Mover solo coincidencias seguras")}</div><button class="primary-button">Guardar configuración</button></form>` : ""}
+    <div class="processing-layout"><div class="processing-table"><div class="processing-row processing-table-head"><span>Archivo / identidad</span><span>Estado y problema</span><span>Candidato</span><span>Destino previsto</span></div>${visible.length ? visible.map(item => `<button class="processing-row ${selected?.id === item.id ? "selected" : ""}" data-processing-item="${item.id}"><span><strong>${escapeHtml(item.comic?.series || item.source_filename)}</strong><small>${escapeHtml(item.source_filename)} · ${escapeHtml(item.comic?.number || "sin número")}</small></span><span><b class="status-${item.status === "Error" ? "error" : item.status === "Necesita revisión" ? "review" : "normal"}">${escapeHtml(item.status)}</b><small>${escapeHtml(item.error || item.last_step || "—")}</small></span><span>${item.selected_candidate ? `<strong>${escapeHtml(item.selected_candidate.series)}</strong><small>#${escapeHtml(item.selected_candidate.number)} · ${item.selected_candidate.score} puntos</small>` : "<small>Sin candidato elegido</small>"}</span><span><small>${escapeHtml(item.planned_destination || "Pendiente de calcular")}</small></span></button>`).join("") : '<p class="muted processing-empty">No hay elementos en esta vista.</p>'}</div>${renderProcessingInspector(selected, comic)}</div>`;
+  bindProcessingEvents(selected, comic);
+}
+
+function renderProcessingInspector(item, comic) {
+  if (!item) return '<aside class="processing-inspector"><p class="muted">Selecciona un archivo para revisar sus datos y acciones disponibles.</p></aside>';
+  const fields = [["series", "Serie"], ["number", "Número"], ["title", "Título"], ["publisher", "Editorial"], ["year", "Año"], ["writer", "Guionista"], ["tags", "Etiquetas"]];
+  const candidates = item.candidates || [];
+  return `<aside class="processing-inspector"><div class="inspector-heading"><div><div class="eyebrow">Revisión</div><h3>${escapeHtml(item.source_filename)}</h3></div><span class="status-pill">${escapeHtml(item.status)}</span></div>${item.error ? `<div class="processing-error"><strong>Error detectado</strong><br>${escapeHtml(item.error)}</div>` : ""}<div class="inspector-actions"><button data-item-action="retry" class="primary-button">Continuar / reintentar</button><button data-item-action="skip" class="toolbar-button">Omitir</button>${item.comic_id ? `<button data-item-action="xml" class="toolbar-button">Escribir ComicInfo</button><button data-item-action="move" class="toolbar-button">Mover al destino</button>` : ""}</div>${comic ? `<form id="processing-metadata" class="metadata-editor"><h4>Metadatos locales</h4><div class="metadata-grid">${fields.map(([key, label]) => `<label class="field-label">${label}<input class="field-input" name="${key}" value="${escapeHtml(comic[key] ?? "")}" placeholder="${escapeHtml(suggestedField(comic, key) || "")}"></label>`).join("")}</div><button class="toolbar-button">Guardar cambios</button></form>` : ""}<div class="candidate-panel"><h4>Candidatos encontrados</h4>${candidates.length ? candidates.map(candidate => `<div class="candidate-row ${item.selected_candidate?.id === candidate.id ? "chosen" : ""}"><div><strong>${escapeHtml(candidate.series)}</strong> #${escapeHtml(candidate.number)} ${escapeHtml(candidate.title || "")}<small>${escapeHtml(candidate.source)} · coincidencia ${candidate.score} · ${escapeHtml(candidate.publisher || "")}</small></div><button data-candidate-id="${escapeHtml(candidate.id)}" class="toolbar-button">${item.selected_candidate?.id === candidate.id ? "Elegido" : "Elegir"}</button></div>`).join("") : '<p class="muted">No se encontraron candidatos. Corrige Serie y Número y vuelve a intentar.</p>'}</div><div class="planned-destination"><strong>Destino previsto</strong><br>${escapeHtml(item.planned_destination || "Se calculará después de completar los metadatos.")}</div></aside>`;
+}
+
+function bindProcessingEvents(selected, comic) {
+  document.getElementById("back-library").addEventListener("click", openLibraryWorkspace);
+  document.getElementById("processing-filter").value = state.incoming.filter;
+  document.querySelectorAll("[data-processing-filter]").forEach(btn => btn.addEventListener("click", () => { state.incoming.filter = btn.dataset.processingFilter; refreshProcessingWorkspace(); }));
+  document.getElementById("processing-filter").addEventListener("change", event => { state.incoming.filter = event.target.value; refreshProcessingWorkspace(); });
+  document.querySelectorAll("[data-processing-item]").forEach(btn => btn.addEventListener("click", () => { state.incoming.selectedId = Number(btn.dataset.processingItem); refreshProcessingWorkspace(); }));
+  document.getElementById("processing-settings").addEventListener("click", () => { state.incoming.settingsOpen = !state.incoming.settingsOpen; refreshProcessingWorkspace(); });
+  document.getElementById("processing-detect").addEventListener("click", async () => { const result = await api("/api/automation/detect", { method: "POST" }); await refreshProcessingWorkspace(); document.getElementById("processing-message").textContent = result.detected ? `${result.detected} archivo(s) añadido(s).` : "No hay archivos nuevos."; });
+  document.getElementById("processing-run").addEventListener("click", async () => { const result = await api("/api/automation/process-pending", { method: "POST" }); await refreshProcessingWorkspace(); document.getElementById("processing-message").textContent = `${result.started} procesamiento(s) iniciado(s).`; });
+  document.getElementById("processing-settings-form")?.addEventListener("submit", async event => { event.preventDefault(); const form = new FormData(event.currentTarget), body = { incoming_path: form.get("incoming_path").trim(), target_library_id: form.get("target_library_id") || null, destination_pattern: form.get("destination_pattern").trim() }; event.currentTarget.querySelectorAll("[data-auto]").forEach(el => body[el.dataset.auto] = el.checked); await api("/api/automation/settings", { method: "PUT", body: JSON.stringify(body) }); await refreshProcessingWorkspace(); });
+  document.querySelectorAll("[data-item-action]").forEach(btn => btn.addEventListener("click", async () => { const action = btn.dataset.itemAction; const path = action === "retry" ? "retry" : action === "skip" ? "skip" : action === "xml" ? "write-comicinfo" : "move"; await api(`/api/automation/items/${selected.id}/${path}`, { method: "POST" }); await refreshProcessingWorkspace(); }));
+  document.querySelectorAll("[data-candidate-id]").forEach(btn => btn.addEventListener("click", async () => { await api(`/api/automation/items/${selected.id}/candidate`, { method: "POST", body: JSON.stringify({ id: btn.dataset.candidateId }) }); await refreshProcessingWorkspace(); }));
+  document.getElementById("processing-metadata")?.addEventListener("submit", async event => { event.preventDefault(); const body = Object.fromEntries(new FormData(event.currentTarget)); if (body.year) body.year = Number(body.year); await api(`/api/comics/${comic.id}`, { method: "PUT", body: JSON.stringify(body) }); await refreshProcessingWorkspace(); });
 }
 
 // ===================== Escaneo de biblioteca =====================
@@ -465,7 +604,7 @@ function renderComicModal(comic) {
   const fieldsHtml = EDITABLE_FIELDS.map(([key, label]) => `
     <div>
       <label class="field-label">${label}</label>
-      <input class="field-input" data-field="${key}" value="${escapeHtml(comic[key] ?? "")}">
+      <input class="field-input ${suggestionApplies(comic, key) ? "metadata-suggestion-input" : ""}" data-field="${key}" value="${escapeHtml(suggestionApplies(comic, key) ? suggestedField(comic, key) : (comic[key] || ""))}" title="${suggestionApplies(comic, key) ? "Sugerido desde el nombre del archivo" : ""}">
     </div>
   `).join("");
 
@@ -482,6 +621,7 @@ function renderComicModal(comic) {
               <button id="read-btn" class="px-2 py-1 text-xs rounded bg-neutral-800 hover:bg-neutral-700">📖 Leer</button>
               ${comic.format !== "cbz" ? `<button id="convert-btn" class="px-2 py-1 text-xs rounded bg-blue-700 hover:bg-blue-600">Convertir a CBZ</button>` : ""}
               <button id="scrape-btn" class="px-2 py-1 text-xs rounded bg-purple-700 hover:bg-purple-600">🔍 Buscar metadatos</button>
+              <button id="accept-suggestions-btn" class="px-2 py-1 text-xs rounded bg-cyan-700 hover:bg-cyan-600">Aceptar sugerencias</button>
               <label class="flex items-center gap-1 text-xs"><input type="checkbox" id="read-toggle" ${comic.read ? "checked" : ""}> Leído</label>
             </div>
           </div>
@@ -495,11 +635,6 @@ function renderComicModal(comic) {
         <label class="field-label">Notas</label>
         <textarea class="field-input mb-4" rows="2" data-field="notes">${escapeHtml(comic.notes)}</textarea>
 
-        <label class="flex items-center gap-2 text-sm mb-4">
-          <input type="checkbox" id="write-comicinfo-cb" ${comic.format === "cbz" ? "" : "disabled"}>
-          Escribir también en ComicInfo.xml dentro del archivo ${comic.format !== "cbz" ? "(conviértelo a cbz primero)" : ""}
-        </label>
-
         <div class="flex gap-2">
           <button id="save-comic-btn" class="px-4 py-2 rounded bg-amber-600 hover:bg-amber-500 text-sm">Guardar</button>
           <button id="comic-modal-close" class="px-4 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-sm ml-auto">Cerrar</button>
@@ -512,11 +647,15 @@ function renderComicModal(comic) {
   document.getElementById("comic-modal-close").addEventListener("click", closeModal);
   document.getElementById("read-btn").addEventListener("click", () => openReader(comic.id));
   document.getElementById("scrape-btn").addEventListener("click", () => openScraperModal(comic));
+  document.getElementById("accept-suggestions-btn").addEventListener("click", async () => {
+    const body = suggestionChanges(comic);
+    if (Object.keys(body).length) { await api(`/api/comics/${comic.id}`, { method: "PUT", body: JSON.stringify(body) }); await loadComics(true); await openComicDetail(comic.id); }
+  });
   const convertBtn = document.getElementById("convert-btn");
   if (convertBtn) convertBtn.addEventListener("click", () => convertComic(comic.id));
 
   document.getElementById("save-comic-btn").addEventListener("click", async () => {
-    const changes = { write_comicinfo: document.getElementById("write-comicinfo-cb").checked };
+    const changes = {};
     document.querySelectorAll("#comic-modal [data-field]").forEach(el => {
       let v = el.value;
       if (["year", "month", "day"].includes(el.dataset.field)) v = v === "" ? null : parseInt(v);
@@ -533,6 +672,10 @@ function renderComicModal(comic) {
       document.getElementById("comic-modal-msg").className = "text-xs mt-2 text-red-400";
     }
   });
+}
+
+function suggestedField(comic, field) {
+  return (comic.suggested_metadata || {})[field] || (field === "format_tag" ? (comic.suggested_metadata || {}).format : "");
 }
 
 async function convertComic(id) {
@@ -610,10 +753,10 @@ async function openScraperModal(comic) {
       if (!results.length) { box.innerHTML = '<p class="text-sm text-neutral-400">Sin resultados.</p>'; return; }
       box.innerHTML = results.map(r => `
         <div class="flex items-center justify-between bg-neutral-800 rounded px-3 py-2 text-sm">
-          <div>
+          <div class="scraper-result-main"><img class="scraper-cover" src="${escapeHtml(r.cover_url || "/static/placeholder.svg")}" onerror="this.src='/static/placeholder.svg'"><div>
             <div class="font-medium">${escapeHtml(r.title || r.series)}</div>
             <div class="text-neutral-400 text-xs">${escapeHtml(r.publisher || "")} ${r.year ? "· " + r.year : ""}</div>
-          </div>
+          </div></div>
           <button data-ref="${escapeHtml(r.ref)}" data-scraper="${scraper}" class="scraper-pick px-2 py-1 rounded bg-amber-600 hover:bg-amber-500 text-xs">Explorar números</button>
         </div>
       `).join("");
@@ -640,7 +783,7 @@ async function showIssuesForSeries(comic, scraper, ref) {
     if (!issues.length) { box.innerHTML = '<p class="text-sm text-neutral-400">Sin números disponibles.</p>'; return; }
     box.innerHTML = issues.map(it => `
       <div class="flex items-center justify-between bg-neutral-800 rounded px-3 py-2 text-sm">
-        <div>#${escapeHtml(it.number)} — ${escapeHtml(it.title || "")}</div>
+        <div class="scraper-result-main"><img class="scraper-cover" src="${escapeHtml(it.cover_url || "/static/placeholder.svg")}" onerror="this.src='/static/placeholder.svg'"><div>#${escapeHtml(it.number)} — ${escapeHtml(it.title || "")}</div></div>
         <button data-issue-ref="${escapeHtml(it.url || it.ref)}" class="apply-issue px-2 py-1 rounded bg-green-700 hover:bg-green-600 text-xs">Aplicar</button>
       </div>
     `).join("");
@@ -653,12 +796,11 @@ async function showIssuesForSeries(comic, scraper, ref) {
 }
 
 async function applyScraperIssue(comicId, scraper, ref) {
-  const writeComicInfo = confirm("¿Escribir también estos metadatos en el ComicInfo.xml del archivo (solo cbz)? Aceptar = sí, Cancelar = solo en la base de datos.");
   const mergeMode = document.getElementById("scraper-merge-mode")?.value || "fill_empty";
   try {
     await api("/api/scrapers/apply", {
       method: "POST",
-      body: JSON.stringify({ comic_id: comicId, scraper, ref, write_comicinfo: writeComicInfo, merge_mode: mergeMode }),
+      body: JSON.stringify({ comic_id: comicId, scraper, ref, write_comicinfo: false, merge_mode: mergeMode }),
     });
     await loadComics(true);
     openComicDetail(comicId);
@@ -700,7 +842,7 @@ async function openBulkScraperModal() {
       const { results } = await api("/api/scrapers/search", { method: "POST", body: JSON.stringify({ scraper, query }) });
       box.innerHTML = results.length ? results.map(result => `
         <button class="series-result" data-series-ref="${escapeHtml(result.ref)}" data-source="${scraper}">
-          <span><strong>${escapeHtml(result.title || result.series)}</strong><small>${escapeHtml(result.publisher || "")} ${result.year ? "· " + result.year : ""}</small></span><span>Comparar →</span>
+          <span class="scraper-result-main"><img class="scraper-cover" src="${escapeHtml(result.cover_url || "/static/placeholder.svg")}" onerror="this.src='/static/placeholder.svg'"><span><strong>${escapeHtml(result.title || result.series)}</strong><small>${escapeHtml(result.publisher || "")} ${result.year ? "· " + result.year : ""}</small></span></span><span>Comparar →</span>
         </button>`).join("") : '<p class="muted">No se encontraron series.</p>';
       box.querySelectorAll("[data-series-ref]").forEach(btn => btn.addEventListener("click", () => previewBulkScrape(btn.dataset.source, btn.dataset.seriesRef)));
     } catch (e) { box.innerHTML = `<p class="error-text">${escapeHtml(e.message)}</p>`; }
@@ -715,16 +857,15 @@ async function previewBulkScrape(scraper, seriesRef) {
     const result = await api("/api/scrapers/bulk-apply", { method: "POST", body: JSON.stringify(payload) });
     box.innerHTML = `
       <div class="match-summary"><strong>${result.matched}</strong> coincidencias <span>·</span> <strong>${result.unmatched.length}</strong> sin emparejar</div>
-      <div class="match-list">${result.preview.map(row => `<div><span>${escapeHtml(row.filename)}</span><span>#${escapeHtml(row.comic_number)} → #${escapeHtml(row.issue_number)} ${escapeHtml(row.issue_title || "")}</span></div>`).join("")}</div>
+      <div class="match-list">${result.preview.map(row => `<div><span class="scraper-result-main"><img class="scraper-cover" src="/api/reader/${row.comic_id}/cover" onerror="this.src='/static/placeholder.svg'"><span>${escapeHtml(row.filename)}</span></span><span class="scraper-result-main"><img class="scraper-cover" src="${escapeHtml(row.issue_cover_url || "/static/placeholder.svg")}" onerror="this.src='/static/placeholder.svg'"><span>#${escapeHtml(row.comic_number)} → #${escapeHtml(row.issue_number)} ${escapeHtml(row.issue_title || "")}</span></span></div>`).join("")}</div>
       ${result.unmatched.length ? `<details class="unmatched"><summary>Ver no emparejados</summary>${result.unmatched.map(row => `<div>${escapeHtml(row.filename)} (#${escapeHtml(row.number || "?")})</div>`).join("")}</details>` : ""}
-      <label class="write-option"><input id="bulk-scrape-write" type="checkbox"> Escribir también ComicInfo.xml en los CBZ</label>
       <div class="modal-actions"><button id="bulk-scrape-apply" class="primary-button" ${result.matched ? "" : "disabled"}>Aplicar ${result.matched} coincidencias</button><button id="bulk-scrape-back" class="toolbar-button">Volver</button></div>
       <div id="bulk-scrape-status"></div>`;
     document.getElementById("bulk-scrape-back").addEventListener("click", openBulkScraperModal);
     document.getElementById("bulk-scrape-apply").addEventListener("click", async () => {
       const button = document.getElementById("bulk-scrape-apply");
       button.disabled = true; button.textContent = "Aplicando…";
-      const finalResult = await api("/api/scrapers/bulk-apply", { method: "POST", body: JSON.stringify({ ...payload, dry_run: false, write_comicinfo: document.getElementById("bulk-scrape-write").checked }) });
+      const finalResult = await api("/api/scrapers/bulk-apply", { method: "POST", body: JSON.stringify({ ...payload, dry_run: false, write_comicinfo: false }) });
       document.getElementById("bulk-scrape-status").innerHTML = `<div class="notice success">Actualizados ${finalResult.updated} cómics.${finalResult.errors.length ? ` ${finalResult.errors.length} requieren revisión.` : ""}</div>`;
       await loadComics(true);
     });
@@ -747,10 +888,6 @@ function openBulkEditModal() {
         <h2 class="text-lg font-semibold mb-2">Editar ${state.selection.size} cómics en lote</h2>
         <p class="text-xs text-neutral-500 mb-3">Marca la casilla de cada campo que quieras sobrescribir. Los campos no marcados no se tocan.</p>
         <div class="space-y-2 mb-4">${fieldsHtml}</div>
-        <label class="flex items-center gap-2 text-sm mb-4">
-          <input type="checkbox" id="bulk-write-comicinfo">
-          Escribir también en ComicInfo.xml (solo aplica a los que ya sean .cbz)
-        </label>
         <div class="flex gap-2">
           <button id="bulk-save-btn" class="px-4 py-2 rounded bg-amber-600 hover:bg-amber-500 text-sm">Aplicar a la selección</button>
           <button id="bulk-modal-close" class="px-4 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-sm ml-auto">Cancelar</button>
@@ -767,7 +904,7 @@ function openBulkEditModal() {
     });
   });
   document.getElementById("bulk-save-btn").addEventListener("click", async () => {
-    const changes = { write_comicinfo: document.getElementById("bulk-write-comicinfo").checked };
+    const changes = {};
     document.querySelectorAll("[data-bulk-enable]:checked").forEach(cb => {
       const key = cb.dataset.bulkEnable;
       let v = document.querySelector(`[data-bulk-field="${key}"]`).value;

@@ -31,3 +31,7 @@ def init_db():
             connection.execute(text("UPDATE comics SET comicinfo_written = 1 WHERE comicinfo_synced_at IS NOT NULL"))
         if "metadata_dirty" not in columns:
             connection.execute(text("ALTER TABLE comics ADD COLUMN metadata_dirty BOOLEAN NOT NULL DEFAULT 0"))
+        if "operation_status" not in columns:
+            connection.execute(text("ALTER TABLE comics ADD COLUMN operation_status VARCHAR NOT NULL DEFAULT 'idle'"))
+        if "operation_error" not in columns:
+            connection.execute(text("ALTER TABLE comics ADD COLUMN operation_error TEXT"))

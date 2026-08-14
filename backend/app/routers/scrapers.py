@@ -173,6 +173,7 @@ def bulk_apply(payload: ScraperBulkApplyRequest, db: Session = Depends(get_db)):
         "comic_number": item["comic"].number,
         "issue_number": item["issue"].get("number"),
         "issue_title": item["issue"].get("title", ""),
+        "issue_cover_url": item["issue"].get("cover_url"),
         "issue_ref": item["issue"].get("url") or item["issue"].get("ref"),
     } for item in matches]
     if payload.dry_run:

@@ -3,7 +3,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from .database import init_db
-from .routers import libraries, scan, comics, convert, reader, scrapers, comicrackce
+from .routers import libraries, scan, comics, convert, reader, scrapers, comicrackce, automation
+from .automation import start_worker
 
 app = FastAPI(title="Comic Manager", version="0.1.0")
 
@@ -16,6 +17,11 @@ app.include_router(convert.router)
 app.include_router(reader.router)
 app.include_router(scrapers.router)
 app.include_router(comicrackce.router)
+app.include_router(automation.router)
+
+@app.on_event("startup")
+def start_automation():
+    start_worker()
 
 app.mount("/static", StaticFiles(directory="/frontend"), name="static")
 

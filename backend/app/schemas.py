@@ -80,9 +80,12 @@ class ComicOut(BaseModel):
     comicinfo_synced_at: Optional[datetime] = None
     comicinfo_written: bool = False
     metadata_dirty: bool = False
+    operation_status: str = "idle"
+    operation_error: Optional[str] = None
     source_scraper: Optional[str] = None
     source_url: Optional[str] = None
     crce_book_id: Optional[str] = None
+    suggested_metadata: dict = {}
 
 
 class ComicUpdate(BaseModel):

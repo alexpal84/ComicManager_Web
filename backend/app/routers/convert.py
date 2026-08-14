@@ -9,6 +9,7 @@ from ..schemas import ConvertRequest, BulkConvertRequest
 from .. import archive_utils
 from ..backup import backup_file
 from ..config import DELETE_ORIGINAL_AFTER_CONVERT
+from ..tasks import submit, get, active
 
 router = APIRouter(prefix="/api/convert", tags=["convert"], dependencies=[Depends(require_auth)])
 
@@ -32,31 +33,22 @@ def convert(payload: ConvertRequest, db: Session = Depends(get_db)):
     if not comic:
         raise HTTPException(404, "Cómic no encontrado")
     delete_original = payload.delete_original if payload.delete_original is not None else DELETE_ORIGINAL_AFTER_CONVERT
-    try:
-        new_path = _convert_comic(comic, delete_original, db)
-    except (FileExistsError, RuntimeError, ValueError) as e:
-        raise HTTPException(400, str(e))
-    db.refresh(comic)
-
-    return {
-        "ok": True,
-        "new_path": new_path,
-        "original_kept": not delete_original,
-        "note": "El .cbr original se ha conservado junto al nuevo .cbz." if not delete_original
-                else "El .cbr original se ha eliminado tras verificar el número de páginas.",
-    }
+    task_id = submit("converting", [comic.id], lambda c, session: {"new_path": _convert_comic(c, delete_original, session)})
+    return {"accepted": True, "task_id": task_id}
 
 
 @router.post("/bulk")
 def convert_bulk(payload: BulkConvertRequest, db: Session = Depends(get_db)):
-    comics = db.query(Comic).filter(Comic.id.in_(payload.comic_ids)).all()
-    results = []
-    for comic in comics:
-        try:
-            new_path = _convert_comic(comic, payload.delete_original, db)
-            results.append({"comic_id": comic.id, "ok": True, "new_path": new_path})
-        except Exception as e:
-            db.rollback()
-            results.append({"comic_id": comic.id, "ok": False, "filename": comic.filename, "error": str(e)})
-    converted = sum(1 for result in results if result["ok"])
-    return {"converted": converted, "failed": len(results) - converted, "results": results}
+    task_id = submit("converting", payload.comic_ids,
+                     lambda c, session: {"new_path": _convert_comic(c, payload.delete_original, session)})
+    return {"accepted": True, "task_id": task_id, "total": len(payload.comic_ids)}
+
+@router.get("/tasks")
+def list_tasks():
+    return {"tasks": active()}
+
+@router.get("/tasks/{task_id}")
+def task_status(task_id: str):
+    task = get(task_id)
+    if not task: raise HTTPException(404, "Tarea no encontrada")
+    return task

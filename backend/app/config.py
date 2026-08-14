@@ -34,6 +34,9 @@ DELETE_ORIGINAL_AFTER_CONVERT = os.environ.get("COMICMGR_DELETE_CBR_AFTER_CONVER
 
 # Formatos de archivo de cómic soportados al escanear
 SUPPORTED_EXTENSIONS = {".cbz", ".cbr", ".cb7", ".zip", ".rar"}
+INCOMING_ALLOWED_ROOTS = tuple(p for p in os.environ.get("COMICMGR_INCOMING_ALLOWED_ROOTS", "/incoming").split(":") if p)
+AUTOMATION_SCAN_SECONDS = max(5, int(os.environ.get("COMICMGR_AUTOMATION_SCAN_SECONDS", "15")))
+AUTOMATION_STABLE_SECONDS = max(5, int(os.environ.get("COMICMGR_AUTOMATION_STABLE_SECONDS", "30")))
 
 # Tamaño máximo del lado largo de las miniaturas de portada (px)
 THUMBNAIL_MAX_SIDE = 480

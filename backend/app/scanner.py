@@ -108,10 +108,6 @@ def scan_library(db: Session, library: Library, progress_cb=None) -> dict:
                 comic.comicinfo_written = True
                 comic.metadata_dirty = False
             elif is_new:
-                guess = guess_metadata_from_filename(comic.filename)
-                comic.series = comic.series or guess["series"]
-                comic.number = comic.number or guess["number"]
-                comic.year = comic.year or guess["year"]
                 comic.comicinfo_written = False
                 comic.metadata_dirty = False
 
